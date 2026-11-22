@@ -12,6 +12,23 @@ La selección registra el nombre, comercio y cantidad. Calcula kcal/macros autom
 
 **Validación pendiente:** probar la interfaz de usuario autenticada y la búsqueda externa con una sesión real; comprobar respuesta del navegador y la primera comida antes de asumir que está lista para uso continuo.
 
+## Búsqueda de restaurantes en internet (noviembre de 2026)
+
+En Mis comidas > De dónde es? > **Buscar restaurante en internet**, el usuario escribe un nombre y pulsa Buscar. La consulta es bajo demanda, no autocompletado, para cumplir mejor la política de uso de Nominatim/OpenStreetMap.
+
+- La función protegida `nutritrack-restaurants` busca restaurantes de Barranquilla en **OpenStreetMap Nominatim** (resultados y enlaces a webs o menús que hayan sido aportados a OpenStreetMap).
+- Cuando existe un sitio oficial admitido, intenta encontrar entradas **Schema.org MenuItem** en datos estructurados JSON-LD; si hay platos, los muestra con categorías y fuentes al consultar la página. Se almacena en caché temporal en la función, sin copia de datos personales.
+- Si no hay datos estructurados, la web no responde o no está en la lista de dominios admitidos, solo ofrece enlaces para consultar la carta: **NO** afirma que haya importado el menú, ni inventa productos o información nutricional.
+- Las fuentes públicas no aseguran disponibilidad por sucursal ni vigencia de precios, promociones o ingredientes. La cobertura varía por restaurante.
+- El catálogo fijo contiene 15 establecimientos y 72 referencias en esta versión, con respaldo de enlaces a fuentes. Los productos envasados se pueden buscar adicionalmente en Open Food Facts.
+- Los datos nutricionales faltantes se mantienen nulos; no se sustituyen por cero ni estimaciones sin fuente.
+- Autenticación obligatoria para invocar funciones de búsqueda. Los dominios permitidos para importar HTML se enumeran explícitamente para reducir riesgos de solicitudes a servidores arbitrarios.
+- El servidor público Nominatim tiene límites y puede no responder si se le exige demasiado; no usarlo para búsquedas masivas ni para autocompletado de texto.
+
+**Pendiente de pruebas reales:** buscar un restaurante desde una sesión de usuario y verificar que OpenStreetMap devuelva opciones en Barranquilla, comprobar la importación para uno de los sitios con datos MenuItem y realizar un registro de comida real. Las comprobaciones estáticas de código y base de datos no sustituyen estas pruebas.
+
+Fuentes técnicas: https://operations.osmfoundation.org/policies/nominatim/ ; https://schema.org/Menu ; https://schema.org/MenuItem .
+
 ## Versión inicial
 
 - Código en GitHub Pages, sin datos personales en el repositorio.
