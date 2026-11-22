@@ -333,6 +333,134 @@ function calculateCatalogValues(){
    $(field).value=f[db]==null?'':(Number(f[db])*grams/100).toFixed(1);
  }
 }
+// Restaurants outside the curated database: search only on explicit button press.
+// Results are backed by OpenStreetMap; dishes are imported only where an official
+// website exposes structured Schema.org MenuItem data.
+async function restaurantRequest(params){
+ const {data:{session}}=await supabase.auth.getSession();
+ if(!session?.access_token)throw new Error('Inicia sesión para consultar restaurantes.');
+ const url=PROJECT_URL+'/functions/v1/nutritrack-restaurants?'+new URLSearchParams(params);
+ const response=await fetch(url,{headers:{
+   apikey:PUBLIC_KEY,
+   authorization:'Bearer '+session.access_token
+ }});
+ const body=await response.json().catch(()=>({}));
+ if(!response.ok)throw new Error(body.error||'El buscador no respondió');
+ return body;
+}
+function onlineOfficialLinks(venue){
+ const links=[];
+ for(const [label,url] of [
+  ['Menú oficial',venue.menu_url],['Sitio web',venue.sitio_web],
+  ['Ficha OpenStreetMap',venue.enlace_osm]
+ ]){
+  if(typeof url==='string'&&url.startsWith('https://')){
+    links.push('<a href="'+safe(url)+'" target="_blank" rel="noopener noreferrer">'+safe(label)+' ↗</a>');
+  }
+ }
+ const q=encodeURIComponent(venue.nombre+' menú Barranquilla sitio oficial');
+ links.push('<a href="https://www.google.com/search?q='+q+'" target="_blank" rel="noopener noreferrer">Buscar carta actual ↗</a>');
+ return links.join(' · ');
+}
+function renderOnlineRestaurantMatches(){
+ const target=$('onlineRestaurantMatches');
+ const results=state.onlineRestaurants||[];
+ if(!results.length){target.innerHTML=empty('No se encontraron restaurantes con ese nombre. Prueba una palabra más corta o consulta el catálogo de restaurantes guardados.');return;}
+ target.innerHTML=results.slice(0,18).map(v=>
+  '<div class="online-venue-card"><div><strong>'+safe(v.nombre)+'</strong>'+
+  '<small>'+safe(v.direccion||'Referencia en Colombia')+'</small>'+
+  '<div class="online-venue-links">'+onlineOfficialLinks(v)+'</div></div>'+
+  '<button class="market-add" data-online-choose="'+safe(v.id)+'" type="button">Elegir restaurante</button></div>'
+ ).join('');
+}
+$('onlineRestaurantButton').addEventListener('click',async()=>{
+ if(selectedMode()!=='restaurante-online')return;
+ const q=$('onlineRestaurantQuery').value.trim();
+ if(q.length<3){notify('Escribe al menos tres letras del restaurante.',true);return;}
+ const b=$('onlineRestaurantButton');b.disabled=true;b.textContent='Buscando...';
+ $('onlineRestaurantStatus').textContent='Consultando restaurantes en Barranquilla...';
+ $('onlineRestaurantMatches').innerHTML='';
+ $('onlineMenuInfo').classList.add('hidden');
+ state.onlineSelectedVenue=null;state.onlineMenuItems=[];resetMealSelection();
+ rebuildMarketCategories();renderMarketResults();
+ // Verified curated establishments are available even if OSM is unreachable.
+ const own=state.marketVenues.filter(v=>v.tipo==='restaurante'&&marketNorm(v.nombre).includes(marketNorm(q)))
+  .map(v=>({id:'local-'+v.id,nombre:v.nombre,direccion:'Catálogo NutriTrack · Colombia',
+    sitio_web:v.sitio_web,menu_url:v.sitio_web,origin_id:v.id}));
+ try{
+  const data=await restaurantRequest({mode:'search',q});
+  const remote=Array.isArray(data.restaurantes)?data.restaurantes:[];
+  const merged=[...own];
+  for(const v of remote){
+    if(!merged.some(x=>marketNorm(x.nombre)===marketNorm(v.nombre)))merged.push(v);
+  }
+  state.onlineRestaurants=merged;
+  $('onlineRestaurantStatus').textContent=merged.length+
+    ' resultados · Algunas ubicaciones proceden de OpenStreetMap. Los menús se consultan en sus fuentes y pueden variar por sede.';
+  renderOnlineRestaurantMatches();
+ }catch(error){
+  state.onlineRestaurants=own;renderOnlineRestaurantMatches();
+  $('onlineRestaurantStatus').textContent=own.length?
+   'Búsqueda online temporalmente indisponible; se muestran restaurantes del catálogo previamente verificado.':
+   'No se pudo consultar OpenStreetMap en este momento. Prueba con otro restaurante o más tarde.';
+ }finally{b.disabled=false;b.textContent='Buscar en internet';}
+});
+$('onlineRestaurantQuery').addEventListener('keydown',event=>{
+ if(event.key==='Enter'){event.preventDefault();$('onlineRestaurantButton').click();}
+});
+$('onlineRestaurantMatches').addEventListener('click',async event=>{
+ const button=event.target.closest('[data-online-choose]');
+ if(!button)return;
+ const venue=state.onlineRestaurants.find(v=>v.id===button.dataset.onlineChoose);
+ if(!venue)return;
+ state.onlineSelectedVenue=venue;
+ state.onlineMenuItems=[];
+ resetMealSelection();
+ const info=$('onlineMenuInfo');
+ info.classList.remove('hidden');
+ info.innerHTML='<strong>'+safe(venue.nombre)+'</strong>'+
+  '<p>Consultando los platos publicados en el sitio oficial, cuando sea compatible...</p>'+
+  '<div class="online-venue-links">'+onlineOfficialLinks(venue)+'</div>';
+ // Retain pre-verified items for known restaurants, clearly labelled separately.
+ const matched=venue.origin_id?
+   state.marketVenues.find(v=>v.id===venue.origin_id):
+   state.marketVenues.find(v=>v.tipo==='restaurante'&&(
+     marketNorm(venue.nombre)===marketNorm(v.nombre)||
+     marketNorm(venue.nombre).startsWith(marketNorm(v.nombre))||
+     marketNorm(v.nombre).startsWith(marketNorm(venue.nombre))
+   ));
+ const local=matched?
+   state.marketProducts.filter(p=>p.establecimiento_id===matched.id)
+      .map(p=>({...p,kind:'restaurante'})):[];
+ state.onlineMenuItems=local;
+ $('sourceCategoryWrap').classList.remove('hidden');
+ rebuildMarketCategories();renderMarketResults();
+ const website=venue.menu_url||venue.sitio_web;
+ let remote=[],message='';
+ if(website){
+   try{
+     const data=await restaurantRequest({mode:'menu',url:website});
+     remote=(Array.isArray(data.platos)?data.platos:[]).map(p=>({
+       ...p,kind:'restaurante-remoto',
+       establecimiento_nombre:venue.nombre
+     }));
+     message=data.aviso||'El sitio oficial no publica menú compatible.';
+   }catch(error){message='No se pudo comprobar automáticamente la carta oficial en esta búsqueda.';}
+ }else message='OpenStreetMap no registra enlace de menú o sitio web para este establecimiento.';
+ const names=new Set(remote.map(p=>marketNorm(p.nombre)));
+ state.onlineMenuItems=[...remote,...local.filter(x=>!names.has(marketNorm(x.nombre)))];
+ $('sourceCategoryWrap').classList.remove('hidden');
+ rebuildMarketCategories();renderMarketResults();
+ const summary=remote.length?
+   remote.length+' platos encontrados en datos estructurados del sitio oficial. ':
+   'No fue posible extraer automáticamente los platos del sitio. ';
+ const secondary=local.length?local.length+' referencias anteriores disponibles en NutriTrack. ':'';
+ info.innerHTML='<strong>'+safe(venue.nombre)+'</strong>'+
+   '<p>'+safe(summary+secondary+message)+'</p>'+
+   '<div class="online-venue-links">'+onlineOfficialLinks(venue)+'</div>'+
+   '<small>La selección no asegura precios vigentes ni disponibilidad local. La información nutricional solo se mostrará si la fuente la publica.</small>';
+});
+
 $('sourceMode').addEventListener('change',changeMarketMode);
 $('sourceVenue').addEventListener('change',()=>{resetMealSelection();rebuildMarketCategories();renderMarketResults()});
 $('sourceCategory').addEventListener('change',renderMarketResults);
