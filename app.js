@@ -410,11 +410,14 @@ $('foodForm').addEventListener('submit',async e=>{
 });
 $('mealForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!state.user)return;
+ const chosen=state.selectedMealItem;
+ if(!chosen&&!$('manualMealDetails').open){notify('Elige un alimento de la lista o abre el registro manual.',true);return;}
  const form=e.currentTarget;formBusy(form,true);const fd=new FormData(form);
  const photo=fd.get('foto'),hasPhoto=photo instanceof File&&photo.size>0;
- const kcal=numForm(fd,'calorias_kcal'),protein=numForm(fd,'proteina_g'),carbs=numForm(fd,'carbohidratos_g'),fat=numForm(fd,'grasas_g'),grams=numForm(fd,'cantidad_g');
- const foodName=String(fd.get('alimento_nombre')||'').trim();
- const description=String(fd.get('descripcion')||'').trim();
+ const kcal=numForm(fd,'calorias_kcal'),protein=numForm(fd,'proteina_g'),carbs=numForm(fd,'carbohidratos_g'),fat=numForm(fd,'grasas_g');
+ const quantity=numForm(fd,'cantidad_g'),grams=chosen?.kind==='restaurante'?null:quantity;
+ const foodName=chosen?.nombre||String(fd.get('alimento_nombre')||'').trim();
+ const description=chosen?chosen.nombre+' · '+chosen.establecimiento_nombre+(chosen.kind==='restaurante'&&quantity!==1?' · '+quantity+' porciones':''):String(fd.get('descripcion')||'').trim();
  if(!foodName&&!description){notify('Indica al menos el nombre del alimento o la descripción del plato.',true);formBusy(form,false);return;}
  let photoPath=null;
  if(hasPhoto){
@@ -426,19 +429,23 @@ $('mealForm').addEventListener('submit',async e=>{
   if(uploaded.error){notify('Error al subir foto privada: '+uploaded.error.message,true);formBusy(form,false);return;}
  }
  const hasNutrients=[kcal,protein,carbs,fat].some(v=>v!=null);
- const hasEstimate=fd.get('metodo')==='foto_estimacion';
+ const hasEstimate=fd.get('metodo')==='foto_estimacion'||chosen?.kind==='externo';
+ const method=chosen?.kind==='restaurante'?'restaurante':chosen?.kind==='externo'?'tabla':fd.get('metodo');
+ if(chosen&&!(quantity>0)){notify('Introduce una cantidad válida.',true);formBusy(form,false);return;}
  const meal={usuario_id:state.user.id,fecha:state.date,hora:fd.get('hora')||null,tipo:fd.get('tipo'),descripcion:description||foodName,
-  foto_ruta:photoPath,origen:hasPhoto?'foto':'manual',estado_analisis:!hasNutrients?'pendiente':hasEstimate?'estimado':'confirmado'};
+  foto_ruta:photoPath,origen:hasPhoto?'foto':chosen?.kind==='restaurante'?'restaurante':'manual',estado_analisis:kcal==null?'pendiente':hasEstimate?'estimado':'confirmado'};
  const {data:created,error}=await supabase.from('comidas').insert(meal).select('id').single();
  if(error){if(photoPath)await supabase.storage.from('fotos_comidas').remove([photoPath]);notify('No se pudo guardar la comida: '+error.message,true);formBusy(form,false);return;}
  if(foodName||hasNutrients){
-  const detail={usuario_id:state.user.id,comida_id:created.id,alimento_id:fd.get('alimento_id')||null,descripcion:foodName||description,
-    cantidad_g:grams,calorias_kcal:kcal,proteina_g:protein,carbohidratos_g:carbs,grasas_g:fat,metodo:fd.get('metodo'),estimacion_incierta:hasEstimate};
+  const detail={usuario_id:state.user.id,comida_id:created.id,alimento_id:chosen?.kind==='personal'?chosen.originalId:fd.get('alimento_id')||null,
+  articulo_catalogo_id:(chosen?.kind==='supermercado'||chosen?.kind==='restaurante')?chosen.id:null,
+  fuente_url:chosen?.enlace_fuente||null,descripcion:foodName||description,
+    cantidad_g:grams,calorias_kcal:kcal,proteina_g:protein,carbohidratos_g:carbs,grasas_g:fat,metodo:method,estimacion_incierta:hasEstimate};
   const saved=await supabase.from('comida_detalles').insert(detail);
   if(saved.error)notify('La comida se guardó, pero faltó el detalle nutricional: '+saved.error.message,true);
   else notify('Comida guardada correctamente');
  }else notify('Comida guardada sin valores nutricionales. Puedes añadirlos después.');
- form.reset();formBusy(form,false);await refreshDateData();
+ form.reset();$('manualMealDetails').open=false;resetMealSelection();renderMarketResults();formBusy(form,false);await refreshDateData();
 });
 document.addEventListener('click',async e=>{
  const btn=e.target.closest('[data-delete-meal]');if(!btn||!state.user)return;
