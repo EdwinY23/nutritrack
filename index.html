@@ -44,23 +44,78 @@
           <section class="panel"><div class="panel-header"><div><h2>Comidas del día</h2><p>Tu historial, con posibilidad de corregir porciones</p></div><button class="text-button jump" data-jump="comidas">Ver todas</button></div><div id="todayMeals" class="meal-list"></div></section>
         </section>
         <section id="tab-comidas" class="tab">
-          <div class="section-heading"><div><span class="eyebrow">ALIMENTACIÓN</span><h1>Registrar comida</h1><p>Usa datos de etiquetas o tablas cuando los tengas. Una foto no mide por sí sola las porciones.</p></div></div>
-          <div class="two-column">
-            <form id="mealForm" class="panel form-card">
-              <h2>Nueva comida</h2>
-              <div class="form-row"><label>Tipo de comida<select name="tipo"><option value="desayuno">Desayuno</option><option value="almuerzo">Almuerzo</option><option value="cena">Cena</option><option value="merienda">Merienda</option><option value="otro">Otro</option></select></label><label>Hora<input name="hora" type="time"></label></div>
-              <label>Descripción del plato<input name="descripcion" type="text" maxlength="240" placeholder="Ej. Pollo, arroz y ensalada"></label>
-              <label>Buscar alimento guardado<select id="catalogSelect" name="alimento_id"><option value="">Introducción manual / sin alimento guardado</option></select></label>
-              <label>Nombre del alimento o ingrediente<input name="alimento_nombre" type="text" maxlength="150" placeholder="Ej. Pechuga de pollo"></label>
-              <div class="form-row"><label>Cantidad (gramos)<input id="mealGrams" name="cantidad_g" type="number" min="0.1" step="0.1" placeholder="150"></label><label>Calorías (kcal)<input id="mealKcal" name="calorias_kcal" type="number" min="0" step="0.1" placeholder="250"></label></div>
-              <div class="form-row three"><label>Proteína (g)<input id="mealProtein" name="proteina_g" type="number" min="0" step="0.1"></label><label>Carbohidratos (g)<input id="mealCarbs" name="carbohidratos_g" type="number" min="0" step="0.1"></label><label>Grasas (g)<input id="mealFat" name="grasas_g" type="number" min="0" step="0.1"></label></div>
-              <label>Origen de la información<select name="metodo"><option value="manual">Introducido manualmente</option><option value="etiqueta">Etiqueta nutricional</option><option value="tabla">Tabla de composición</option><option value="restaurante">Restaurante</option><option value="foto_estimacion">Estimación a partir de foto</option></select></label>
-              <label>Fotografía privada (opcional)<input name="foto" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif"></label>
-              <p class="fineprint">La fotografía se guarda en un espacio privado. El reconocimiento automático con IA todavía no está conectado. Puedes corregir los valores luego.</p>
-              <button class="primary" type="submit">Guardar comida</button>
-            </form>
-            <section class="panel"><div class="panel-header"><div><h2>Historial del día</h2><p id="mealDateLabel"></p></div></div><div id="mealHistory" class="meal-list"></div></section>
+          <div class="section-heading">
+            <div><span class="eyebrow">ALIMENTACIÓN · SELECCIÓN GUIADA</span>
+              <h1>¿Qué comiste?</h1>
+              <p>Elige el comercio, filtra su catálogo y selecciona un producto o plato. Solo necesitarás confirmar la cantidad. Cuando no existan datos nutricionales comprobables, el registro quedará pendiente y no se inventarán calorías.</p>
+            </div>
           </div>
+          <section class="panel meal-market-filters">
+            <div class="filter-head"><div><h2>Encuentra tu alimento</h2><p>Filtra por tipo de comercio, nombre, categoría o marca</p></div><span id="catalogCount" class="catalog-count">Cargando catálogo...</span></div>
+            <div class="market-filter-grid">
+              <label>¿De dónde es?
+                <select id="sourceMode">
+                  <option value="supermercado">🛒 Supermercado</option>
+                  <option value="restaurante">🍽️ Restaurante</option>
+                  <option value="general">🔎 Buscar productos envasados</option>
+                  <option value="personal">⭐ Mis alimentos guardados</option>
+                </select>
+              </label>
+              <label id="sourceVenueWrap">Selecciona el establecimiento
+                <select id="sourceVenue"><option value="">Seleccionar...</option></select>
+              </label>
+              <label id="sourceCategoryWrap">Categoría
+                <select id="sourceCategory"><option value="">Todas las categorías</option></select>
+              </label>
+              <label>Buscar por nombre o marca
+                <input id="sourceSearch" type="search" inputmode="search" autocomplete="off" placeholder="Ej. yogurt, galletas, Big Mac..." maxlength="80">
+              </label>
+            </div>
+            <div class="catalog-actions">
+              <button type="button" id="sourceFetch" class="small-button hidden">Buscar en Open Food Facts</button>
+              <p id="catalogHint" class="fineprint">Selecciona un comercio y una categoría para ver sus artículos. La existencia puede variar por sede.</p>
+            </div>
+          </section>
+          <div class="two-column food-picker-grid">
+            <section class="panel food-results-panel">
+              <div class="panel-header"><div><h2>Opciones disponibles en el catálogo</h2><p id="sourceResultSubtitle">Elige un establecimiento</p></div></div>
+              <div id="sourceResults" class="source-results" aria-live="polite">
+                <div class="empty-state">Cargando los establecimientos...</div>
+              </div>
+            </section>
+            <form id="mealForm" class="panel form-card meal-picker-form">
+              <h2>Tu selección</h2>
+              <div id="selectedPreview" class="selected-food-preview">
+                <strong>Aún no has elegido un alimento</strong>
+                <span>Selecciona un producto o plato de la lista de la izquierda.</span>
+              </div>
+              <div class="form-row">
+                <label>¿En qué momento lo comiste?
+                  <select name="tipo"><option value="desayuno">Desayuno</option><option value="almuerzo">Almuerzo</option><option value="cena">Cena</option><option value="merienda" selected>Merienda</option><option value="otro">Otro</option></select>
+                </label>
+                <label>Hora (opcional)<input name="hora" type="time"></label>
+              </div>
+              <label id="selectedPortionLabel">Cantidad consumida (gramos)
+                <input id="mealGrams" name="cantidad_g" type="number" min="0.1" step="0.1" placeholder="100" value="100">
+              </label>
+              <p id="nutritionPreview" class="nutrient-preview">Al seleccionar un producto, aparecerán las calorías y macronutrientes disponibles.</p>
+              <details id="manualMealDetails" class="manual-meal-details">
+                <summary>¿No encuentras el alimento? Registro manual opcional</summary>
+                <div class="manual-fields">
+                  <label>Descripción del plato<input name="descripcion" type="text" maxlength="240" placeholder="Ej. Pollo con arroz y ensalada"></label>
+                  <label>Mis alimentos guardados<select id="catalogSelect" name="alimento_id"><option value="">Ninguno</option></select></label>
+                  <label>Nombre del ingrediente o alimento<input name="alimento_nombre" type="text" maxlength="150" placeholder="Ej. Yogurt natural"></label>
+                  <div class="form-row"><label>Calorías (kcal)<input id="mealKcal" name="calorias_kcal" type="number" min="0" step="0.1"></label><label>Proteína (g)<input id="mealProtein" name="proteina_g" type="number" min="0" step="0.1"></label></div>
+                  <div class="form-row"><label>Carbohidratos (g)<input id="mealCarbs" name="carbohidratos_g" type="number" min="0" step="0.1"></label><label>Grasas (g)<input id="mealFat" name="grasas_g" type="number" min="0" step="0.1"></label></div>
+                  <label>Origen de los valores<select name="metodo"><option value="manual">Manual</option><option value="etiqueta">Etiqueta nutricional</option><option value="tabla">Tabla nutricional</option><option value="restaurante">Restaurante</option><option value="foto_estimacion">Estimación por fotografía</option></select></label>
+                </div>
+              </details>
+              <label>Foto opcional<input name="foto" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif"></label>
+              <p class="fineprint">La foto se almacena de forma privada. Los productos listados provienen de catálogos públicos, pero no certificamos disponibilidad en una tienda concreta ni composición exacta sin etiqueta.</p>
+              <button id="saveSelectedMeal" class="primary" type="submit">Guardar comida seleccionada</button>
+            </form>
+          </div>
+          <section class="panel"><div class="panel-header"><div><h2>Comidas registradas en esta fecha</h2><p id="mealDateLabel"></p></div></div><div id="mealHistory" class="meal-list"></div></section>
         </section>
         <section id="tab-catalogo" class="tab">
           <div class="section-heading"><div><span class="eyebrow">BASE PERSONAL DE ALIMENTOS</span><h1>Catálogo nutricional</h1><p>Crea fichas de productos colombianos, preparaciones y restaurantes con fuentes identificables.</p></div></div>
