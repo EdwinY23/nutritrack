@@ -42,7 +42,7 @@ $('toggleAuth').addEventListener('click',()=>{
 $('authForm').addEventListener('submit',async e=>{
   e.preventDefault();const form=e.currentTarget;formBusy(form,true);const fd=new FormData(form);
   const credentials={email:String(fd.get('email')).trim(),password:String(fd.get('password'))};
-  const {data,error}=state.isSignUp?await supabase.auth.signUp(credentials):await supabase.auth.signInWithPassword(credentials);
+  const {data,error}=state.isSignUp?await supabase.auth.signUp({...credentials,options:{emailRedirectTo:window.location.origin+window.location.pathname}}):await supabase.auth.signInWithPassword(credentials);
   formBusy(form,false);
   if(error){$('authMessage').textContent=error.message;return;}
   if(state.isSignUp && !data.session){
