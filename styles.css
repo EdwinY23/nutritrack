@@ -77,3 +77,28 @@
 .online-menu-info p{color:#c7e1d8;margin:7px 0;font-size:.84rem}
 .online-menu-info small{display:block;color:#98c0b3;margin-top:8px}
 @media(max-width:680px){.online-search-row{grid-template-columns:1fr}.online-match-list{grid-template-columns:1fr}.online-venue-card{align-items:flex-start}.online-venue-card button{font-size:.71rem;padding:8px}}
+
+
+/* Nutrition estimation: source labels, confidence, and macro distribution */
+.market-nutrition.estimated{font-weight:800;color:#f5c778}
+.nutrition-kind{font-size:.7rem;font-weight:800;text-transform:uppercase;letter-spacing:.035em;color:#f6ce8f}
+.nutrition-range{font-size:.73rem;color:#e5c49b}
+.market-macros{font-size:.72rem;color:#c2d7e5;font-variant-numeric:tabular-nums;line-height:1.5}
+.macro-breakdown{border:1px solid #3c526a;background:#152837;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:11px}
+.macro-breakdown.hidden{display:none}
+.macro-breakdown>strong{font-size:.84rem;color:#e2edf2}
+.macro-triple{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.macro-triple>div{border-radius:9px;background:#203547;padding:10px;display:flex;flex-direction:column;gap:3px}
+.macro-triple small{font-size:.67rem;color:#a8bdcc}
+.macro-triple b{font-size:1rem;font-weight:800;font-variant-numeric:tabular-nums}
+.macro-bar{height:8px;background:#324252;display:flex;overflow:hidden;border-radius:100px}
+.macro-bar span{height:100%;display:block}
+.macro-bar .protein{background:#45bf91}
+.macro-bar .carb{background:#e6be71}
+.macro-bar .fat{background:#a3a1f0}
+.macro-distribution{font-size:.73rem;color:#b4c7d5}
+.estimate-assumptions{border-top:1px solid #426154;margin-top:7px;padding-top:8px;color:#bedbd4;font-size:.76rem}
+.estimate-assumptions summary{font-weight:700;cursor:pointer}
+.estimate-assumptions p{margin-top:6px;font-size:.75rem;line-height:1.6}
+.nutrition-method-note{font-size:.73rem;color:#b0bac8}
+@media(max-width:420px){.macro-triple{gap:5px}.macro-triple>div{padding:7px}.macro-triple b{font-size:.88rem}}
