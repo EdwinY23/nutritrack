@@ -231,7 +231,7 @@ function changeMarketMode(){
   }else if(mode==='restaurante-online'){
     $('catalogHint').textContent='Escribe el nombre del restaurante y pulsa Buscar en internet. Si su web no permite importar platos, te enseñaremos su carta oficial.';
   }else{
-    $('catalogHint').textContent='Referencias enlazadas a catálogos oficiales. Los menús cambian y la disponibilidad varía por sucursal; si no se publican nutrientes, no mostramos valores inventados.';
+    $('catalogHint').textContent='Referencias de comercios. Si no existe etiqueta o ficha nutricional, las kcal y macros se calculan por ingredientes comparables y figuran como ESTIMADOS con un rango orientativo; verifica porciones y disponibilidad.';
   }
   rebuildMarketCategories();renderMarketResults();
 }
