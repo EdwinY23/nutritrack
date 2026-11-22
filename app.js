@@ -88,7 +88,7 @@ async function refreshDateData(){
   $('mealDateLabel').textContent=friendlyDate(state.date);
   const weekStart=dayOffset(state.date,-6);
   const [mealsRes,sumRes]=await Promise.all([
-    supabase.from('comidas').select('id,fecha,hora,tipo,descripcion,foto_ruta,estado_analisis,comida_detalles(id,descripcion,cantidad_g,calorias_kcal,proteina_g,carbohidratos_g,grasas_g,metodo)').eq('fecha',state.date).order('creado_en',{ascending:false}),
+    supabase.from('comidas').select('id,fecha,hora,tipo,descripcion,foto_ruta,estado_analisis,comida_detalles(id,descripcion,cantidad_g,calorias_kcal,proteina_g,carbohidratos_g,grasas_g,metodo,estimacion_incierta,tipo_nutricion,rango_kcal_min,rango_kcal_max)').eq('fecha',state.date).order('creado_en',{ascending:false}),
     supabase.from('resumen_diario').select('*').gte('fecha',weekStart).lte('fecha',state.date).order('fecha')
   ]);
   if(mealsRes.error)notify('Error en comidas: '+mealsRes.error.message,true);
@@ -100,6 +100,7 @@ async function refreshDateData(){
 function renderSummary(){
   const row=state.summary.find(r=>r.fecha===state.date);
   const hasMeals=!!row?.comidas_registradas;
+  const includesEstimates=state.meals.some(m=>m.estado_analisis==='estimado');
   const hasKcal=row?.kcal_consumidas!=null;
   const hasActive=row?.calorias_activas!=null;
   const hasRest=row?.calorias_reposo!=null;
@@ -112,11 +113,11 @@ function renderSummary(){
   $('restToday').textContent=hasRest?decimal(row.calorias_reposo,1)+' kcal':'—';
   $('totalBurn').textContent=hasRest&&hasActive?decimal(row.gasto_total_estimado_kcal,1)+' kcal':'—';
   $('mealCount').textContent=hasMeals?String(row.comidas_registradas):'0';
-  $('kcalContext').textContent=!hasMeals?'Sin comidas registradas':row.calorias_incompletas?'Registro incompleto: faltan calorías':'Total de comidas anotadas';
+  $('kcalContext').textContent=!hasMeals?'Sin comidas registradas':row.calorias_incompletas?'Registro incompleto: faltan calorías':includesEstimates?'Incluye kcal estimadas, no oficiales':'Total de comidas anotadas';
   $('proteinContext').textContent=hasMeals?'Proteína de alimentos anotados':'Añade comidas para comenzar';
   $('activityContext').textContent=hasActive?(row.estado_actividad==='provisional'?'Lectura provisional':'Datos registrados'):'Esperando Apple Health';
   $('stepsContext').textContent=row?.pasos==null?'Esperando sincronización':'Apple Health';
-  $('dayStatus').textContent=!hasMeals&&!hasActive?'Aún no hay registros de este día.':row?.calorias_incompletas?'Faltan datos nutricionales de algunas comidas. No interpretes el total como todo lo ingerido.':'Recuerda que los totales dependen de la calidad y completitud de tus registros.';
+  $('dayStatus').textContent=!hasMeals&&!hasActive?'Aún no hay registros de este día.':row?.calorias_incompletas?'Faltan datos nutricionales de algunas comidas. No interpretes el total como todo lo ingerido.':includesEstimates?'Los totales contienen estimaciones orientativas que pueden diferir de la preparación y porción real.':'Recuerda que los totales dependen de la calidad y completitud de tus registros.';
   renderWeekChart();
 }
 function renderWeekChart(){
@@ -148,7 +149,17 @@ async function renderMeals(){
     const total=details.reduce((a,x)=>a+(x.calorias_kcal==null?0:Number(x.calorias_kcal)),0);
     const hasKcal=details.some(x=>x.calorias_kcal!=null);
     const sub=details.map(x=>safe(x.descripcion)+(x.cantidad_g?' · '+decimal(x.cantidad_g,0)+' g':'')).join(', ');
-    return '<div class="meal-item"><div>'+image+'<strong>'+safe(m.tipo[0].toUpperCase()+m.tipo.slice(1))+(m.hora?' · '+safe(m.hora.slice(0,5)):'')+'</strong><small>'+safe(m.descripcion||sub||'Sin descripción')+'</small><small>'+safe(sub)+'</small>'+(m.estado_analisis==='pendiente'?'<small>Datos nutricionales pendientes</small>':'')+'</div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:9px"><span class="meal-kcal">'+(hasKcal?decimal(total,0)+' kcal':'Sin kcal')+'</span><button class="delete-btn" type="button" data-delete-meal="'+safe(m.id)+'">Eliminar</button></div></div>';
+    const estimated=m.estado_analisis==='estimado'||details.some(x=>x.estimacion_incierta);
+    const hasBounds=details.length>0&&details.every(x=>x.rango_kcal_min!=null&&x.rango_kcal_max!=null);
+    const low=hasBounds?details.reduce((a,x)=>a+Number(x.rango_kcal_min),0):null;
+    const high=hasBounds?details.reduce((a,x)=>a+Number(x.rango_kcal_max),0):null;
+    const nutrients=details.reduce((acc,x)=>{
+      for(const key of ['proteina_g','carbohidratos_g','grasas_g'])
+        if(x[key]!=null)acc[key]+=Number(x[key]);
+      return acc;
+    },{proteina_g:0,carbohidratos_g:0,grasas_g:0});
+    const nutritionInfo=estimated?' · P '+decimal(nutrients.proteina_g,0)+' g · C '+decimal(nutrients.carbohidratos_g,0)+' g · G '+decimal(nutrients.grasas_g,0)+' g':'';
+    return '<div class="meal-item"><div>'+image+'<strong>'+safe(m.tipo[0].toUpperCase()+m.tipo.slice(1))+(m.hora?' · '+safe(m.hora.slice(0,5)):'')+'</strong><small>'+safe(m.descripcion||sub||'Sin descripción')+'</small><small>'+safe(sub)+'</small>'+(m.estado_analisis==='pendiente'?'<small>Datos nutricionales pendientes</small>':estimated?'<small>Estimación nutricional, no oficial'+safe(nutritionInfo)+'</small>':'')+'</div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:9px"><span class="meal-kcal">'+(hasKcal?(estimated?'≈ ':'')+decimal(total,0)+' kcal'+(hasBounds?' · '+decimal(low,0)+'–'+decimal(high,0)+' aprox.':''):'Sin kcal')+'</span><button class="delete-btn" type="button" data-delete-meal="'+safe(m.id)+'">Eliminar</button></div></div>';
   }));
   $('mealHistory').innerHTML=rows.length?rows.join(''):empty('No has registrado comidas en esta fecha.');
   $('todayMeals').innerHTML=rows.length?rows.join(''):empty('No hay comidas registradas. Empieza añadiendo tu primera comida.');
@@ -612,8 +623,8 @@ $('mealForm').addEventListener('submit',async e=>{
   if(uploaded.error){notify('Error al subir foto privada: '+uploaded.error.message,true);formBusy(form,false);return;}
  }
  const hasNutrients=[kcal,protein,carbs,fat].some(v=>v!=null);
- const hasEstimate=fd.get('metodo')==='foto_estimacion'||chosen?.kind==='externo';
- const method=chosen?.kind?.startsWith('restaurante')?'restaurante':chosen?.kind==='externo'?'tabla':fd.get('metodo');
+ const hasEstimate=fd.get('metodo')==='foto_estimacion'||chosen?.kind==='externo'||chosen?.tipo_nutricion?.startsWith('estimado_');
+ const method=chosen?.kind?.startsWith('restaurante')?'restaurante':chosen?.tipo_nutricion?.startsWith('estimado_')?'tabla':chosen?.kind==='externo'?'tabla':fd.get('metodo');
  if(chosen&&!(quantity>0)){notify('Introduce una cantidad válida.',true);formBusy(form,false);return;}
  const meal={usuario_id:state.user.id,fecha:state.date,hora:fd.get('hora')||null,tipo:fd.get('tipo'),descripcion:description||foodName,
   foto_ruta:photoPath,origen:hasPhoto?'foto':chosen?.kind?.startsWith('restaurante')?'restaurante':'manual',estado_analisis:kcal==null?'pendiente':hasEstimate?'estimado':'confirmado'};
@@ -623,6 +634,9 @@ $('mealForm').addEventListener('submit',async e=>{
   const detail={usuario_id:state.user.id,comida_id:created.id,alimento_id:chosen?.kind==='personal'?chosen.originalId:fd.get('alimento_id')||null,
   articulo_catalogo_id:(chosen?.kind==='supermercado'||chosen?.kind==='restaurante')?chosen.id:null,
   fuente_url:chosen?.enlace_fuente||null,descripcion:foodName||description,
+    tipo_nutricion:chosen?.tipo_nutricion||(chosen?.kind==='externo'?'comunidad':null),
+    rango_kcal_min:chosen?.kcal_min!=null&&quantity>0?Math.round(Number(chosen.kcal_min)*(chosen?.kind?.startsWith('restaurante')?quantity:quantity/100)*100)/100:null,
+    rango_kcal_max:chosen?.kcal_max!=null&&quantity>0?Math.round(Number(chosen.kcal_max)*(chosen?.kind?.startsWith('restaurante')?quantity:quantity/100)*100)/100:null,
     cantidad_g:grams,calorias_kcal:kcal,proteina_g:protein,carbohidratos_g:carbs,grasas_g:fat,metodo:method,estimacion_incierta:hasEstimate};
   const saved=await supabase.from('comida_detalles').insert(detail);
   if(saved.error)notify('La comida se guardó, pero faltó el detalle nutricional: '+saved.error.message,true);
