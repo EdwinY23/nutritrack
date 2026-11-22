@@ -182,6 +182,7 @@ function resetMealSelection(){
   }
   $('selectedPreview').innerHTML='<strong>Aún no has elegido un alimento</strong><span>Selecciona un producto o plato de la lista.</span>';
   $('nutritionPreview').textContent='Los valores nutricionales aparecerán cuando el producto los incluya.';
+  $('macroBreakdown').innerHTML='';$('macroBreakdown').classList.add('hidden');
   $('mealGrams').value='100';$('selectedPortionLabel').firstChild.textContent='Cantidad consumida (gramos) ';
 }
 async function loadMarketCatalog(){
@@ -277,8 +278,17 @@ function renderMarketResults(){
   target.innerHTML=items.slice(0,100).map(item=>{
     const hasKcal=item.kcal!=null;
     const hasAny=[item.kcal,item.proteina_g,item.carbohidratos_g,item.grasas_g].some(n=>n!=null);
-    const display=hasKcal?decimal(item.kcal,1)+' kcal/'+(item.kind?.startsWith('restaurante')?'porción':'100 g'):
-       hasAny?'Valores nutricionales parciales':'Sin calorías publicadas';
+    const isEstimated=typeof item.tipo_nutricion==='string'&&item.tipo_nutricion.startsWith('estimado_');
+    const serving=item.base_nutricional==='porcion'||item.kind?.startsWith('restaurante');
+    const unit=serving?'porción':'100 g';
+    const range=isEstimated&&item.kcal_min!=null&&item.kcal_max!=null?
+      'Rango orientativo '+decimal(item.kcal_min,0)+'–'+decimal(item.kcal_max,0)+' kcal':'';
+    const display=hasKcal?(isEstimated?'≈ ':'')+decimal(item.kcal,0)+' kcal/'+unit:
+       hasAny?'Información nutricional parcial':'Sin datos nutricionales';
+    const macros=hasAny&&[item.proteina_g,item.carbohidratos_g,item.grasas_g].some(v=>v!=null)?
+      'P '+(item.proteina_g!=null?decimal(item.proteina_g,0):'?')+' g · C '+
+      (item.carbohidratos_g!=null?decimal(item.carbohidratos_g,0):'?')+' g · G '+
+      (item.grasas_g!=null?decimal(item.grasas_g,0):'?')+' g / '+unit:'';
     const supporting=item.marca?item.marca+' · ':'';
     const menuDated=item.id?.startsWith('porthos-')?'Carta publicada 2024 · comprobar vigencia · ':'';
     const pack=item.cantidad_presentacion_g?' · presentación '+decimal(item.cantidad_presentacion_g)+' g':'';
@@ -287,7 +297,10 @@ function renderMarketResults(){
     return '<article class="market-food-card'+(state.selectedMealItem?.id===item.id?' picked':'')+'">'+
       '<div><span class="market-category">'+safe(item.categoria||'Otros')+'</span>'+
       '<strong>'+safe(item.nombre)+'</strong><small>'+safe(menuDated+supporting+(item.establecimiento_nombre||'')+pack)+'</small>'+
-      '<span class="market-nutrition'+(hasKcal?' known':'')+'">'+safe(display)+'</span></div>'+
+      '<span class="market-nutrition'+(isEstimated?' estimated':hasKcal?' known':'')+'">'+safe(display)+'</span>'+
+      (isEstimated?'<span class="nutrition-kind">Estimación nutricional · no oficial</span>':'')+
+      (range?'<span class="nutrition-range">'+safe(range)+'</span>':'')+
+      (macros?'<span class="market-macros">'+safe(macros)+'</span>':'')+'</div>'+
       '<div class="market-card-actions">'+source+
       '<button type="button" class="market-add" data-market-select="'+safe(item.id)+'">Elegir</button></div></article>';
   }).join('');
@@ -305,35 +318,70 @@ function chooseMarketProduct(id){
   $('manualMealDetails').open=false;
   $('selectedPortionLabel').firstChild.textContent=isMenu?'Cantidad de porciones consumidas ':'Cantidad consumida (gramos) ';
   $('mealGrams').value=isMenu?'1':(item.kind==='personal'&&item.cantidad_presentacion_g?item.cantidad_presentacion_g:'100');
+  const estimated=item.tipo_nutricion?.startsWith('estimado_');
+  const assumption=estimated&&item.descripcion_estimacion?
+    '<details class="estimate-assumptions"><summary>¿Cómo se estimó esta porción?</summary><p>'+safe(item.descripcion_estimacion)+'</p>'+
+    '<p>Fuentes de composición: tablas ICBF y USDA; no es la ficha nutricional del comercio.</p></details>':'';
   $('selectedPreview').innerHTML='<span class="eyebrow">SELECCIONADO</span><strong>'+safe(item.nombre)+'</strong>'+
-    '<span>'+safe(item.establecimiento_nombre)+(item.marca?' · '+safe(item.marca):'')+'</span>';
+    '<span>'+safe(item.establecimiento_nombre)+(item.marca?' · '+safe(item.marca):'')+'</span>'+
+    (estimated?'<span class="nutrition-kind">Estimación orientativa, no oficial</span>':'')+
+    (item.porcion_referencia_g?'<span>Porción modelo: '+safe(decimal(item.porcion_referencia_g,0))+' g</span>':'')+
+    assumption;
   calculateCatalogValues();
   renderMarketResults();
 }
 function calculateCatalogValues(){
  const selected=state.selectedMealItem;
+ const breakdown=$('macroBreakdown');
+ breakdown.classList.add('hidden');breakdown.innerHTML='';
  if(selected){
    const amount=Number($('mealGrams').value);
    const isMenu=selected.kind==='restaurante'||selected.kind==='restaurante-remoto';
    const fraction=isMenu?amount:amount/100;
-   const pairs=[['mealKcal','kcal'],['mealProtein','proteina_g'],['mealCarbs','carbohidratos_g'],['mealFat','grasas_g']];
-   for(const [field,key] of pairs){
-     $(field).value=selected[key]!=null&&Number.isFinite(fraction)&&fraction>0?
-       (Number(selected[key])*fraction).toFixed(2):'';
+   const valid=Number.isFinite(fraction)&&fraction>0;
+   for(const [field,key] of [['mealKcal','kcal'],['mealProtein','proteina_g'],
+                              ['mealCarbs','carbohidratos_g'],['mealFat','grasas_g']]){
+     $(field).value=valid&&selected[key]!=null?(Number(selected[key])*fraction).toFixed(1):'';
    }
-   const haveKcal=$('mealKcal').value!=='';
-   $('nutritionPreview').textContent=haveKcal?
-     'Porción elegida: '+decimal($('mealKcal').value,1)+' kcal'+($('mealProtein').value!==''?' · '+decimal($('mealProtein').value,1)+' g proteína':' · proteína sin información')+'. Revisa la etiqueta si está disponible.'
-     :'Este artículo no publica calorías verificables en el catálogo consultado. Se registrará sin calorías, sin inventar una estimación.';
+   const estimated=selected.tipo_nutricion?.startsWith('estimado_');
+   if(!valid){$('nutritionPreview').textContent='Introduce una cantidad mayor que cero.';return;}
+   if($('mealKcal').value===''){
+     $('nutritionPreview').textContent='Sin información nutricional suficiente para calcular calorías. Podrás registrar el alimento como pendiente.';
+     return;
+   }
+   const value=Math.round(Number($('mealKcal').value));
+   const lower=estimated&&selected.kcal_min!=null?Math.max(0,Math.round(Number(selected.kcal_min)*fraction)):null;
+   const upper=estimated&&selected.kcal_max!=null?Math.round(Number(selected.kcal_max)*fraction):null;
+   const kcalRange=lower!=null&&upper!=null?' (rango orientativo '+decimal(lower)+'–'+decimal(upper)+' kcal)':'';
+   const macroFields=[['Proteína','mealProtein','protein',4],['Carbohidratos','mealCarbs','carb',4],['Grasas','mealFat','fat',9]];
+   const available=macroFields.filter(([,id])=>$(id).value!=='');
+   $('nutritionPreview').textContent=(estimated?'Estimación: ≈ ':'Aporte registrado: ')+decimal(value)+' kcal'+kcalRange+
+     '. '+(estimated?'Las porciones, salsas y preparaciones reales pueden variar.':'Comprueba la presentación del alimento.');
+   if(available.length===3){
+     const data=macroFields.map(([label,id,cls,factor])=>({
+       label,cls,grams:Number($(id).value),energy:Number($(id).value)*factor
+     }));
+     const sum=data.reduce((a,x)=>a+x.energy,0);
+     breakdown.classList.remove('hidden');
+     breakdown.innerHTML='<strong>Distribución estimada de macronutrientes</strong>'+
+       '<div class="macro-triple">'+data.map(x=>'<div><small>'+safe(x.label)+'</small><b>'+decimal(x.grams,1)+' g</b></div>').join('')+'</div>'+
+       (sum>0?'<div class="macro-bar" aria-hidden="true">'+data.map(x=>
+         '<span class="'+x.cls+'" style="width:'+Math.round(100*x.energy/sum*100)/100+'%"></span>').join('')+'</div>'+
+         '<div class="macro-distribution">'+data.map(x=>safe(x.label)+': '+Math.round(x.energy/sum*100)+'%').join(' · ')+
+         ' de la energía calculada con factores 4/4/9</div>':'')+
+       (estimated?'<small>Valores aproximados, no mediciones de este producto o restaurante.</small>':'');
+   }
    return;
  }
  const f=state.foods.find(x=>x.id===$('catalogSelect').value);
  const grams=Number($('mealGrams').value);
  if(!f||!(grams>0))return;
- for(const [field,db] of [['mealKcal','kcal_100g'],['mealProtein','proteina_100g'],['mealCarbs','carbohidratos_100g'],['mealFat','grasas_100g']]){
+ for(const [field,db] of [['mealKcal','kcal_100g'],['mealProtein','proteina_100g'],
+                          ['mealCarbs','carbohidratos_100g'],['mealFat','grasas_100g']]){
    $(field).value=f[db]==null?'':(Number(f[db])*grams/100).toFixed(1);
  }
 }
+
 // Restaurants outside the curated database: search only on explicit button press.
 // Results are backed by OpenStreetMap; dishes are imported only where an official
 // website exposes structured Schema.org MenuItem data.
