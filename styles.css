@@ -15,3 +15,45 @@
 .import-day .full{grid-column:1/-1}
 .import-day small{grid-column:1/-1;font-size:.72rem}
 #importPreview>.fineprint{margin:14px 0 2px}
+
+
+/* Selector guiado de productos y restaurantes */
+.meal-market-filters{margin-bottom:18px}
+.filter-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:18px}
+.filter-head p{color:var(--muted);font-size:.79rem;margin-top:5px}
+.catalog-count{white-space:nowrap;border-radius:999px;background:#233c36;color:#83ebc8;font-size:.76rem;font-weight:800;padding:7px 12px}
+.market-filter-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.market-filter-grid label{display:flex;flex-direction:column;gap:7px;color:#cbd8e3;font-size:.78rem;font-weight:700;min-width:0}
+.market-filter-grid label.hidden{display:none}
+.market-filter-grid select,.market-filter-grid input{height:45px;min-width:0}
+.catalog-actions{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-top:16px}
+.catalog-actions>p{flex:1}
+.catalog-actions button{white-space:nowrap}
+.food-picker-grid{grid-template-columns:minmax(0,1.25fr) minmax(310px,.75fr)}
+.food-results-panel{min-height:300px}
+.source-results{display:flex;flex-direction:column;gap:10px;max-height:650px;overflow:auto;padding-right:4px}
+.market-food-card{display:flex;justify-content:space-between;align-items:center;gap:18px;border:1px solid #344356;border-radius:13px;background:#1a2839;padding:15px;transition:background .2s,border-color .2s}
+.market-food-card.picked{border-color:#5fd4ae;background:#203d38}
+.market-food-card>div:first-child{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.market-food-card strong{font-size:.88rem;line-height:1.3}
+.market-food-card small{font-size:.74rem;color:var(--muted)}
+.market-category{color:#82e6c5;background:#234139;padding:3px 8px;border-radius:100px;font-size:.66rem;font-weight:800;margin-bottom:3px}
+.market-nutrition{font-size:.73rem;color:#d8ae89}
+.market-nutrition.known{color:#71dab7;font-weight:700}
+.market-card-actions{display:flex;flex-direction:column;align-items:flex-end;gap:11px}
+.market-add{border:0;border-radius:9px;background:#396858;color:#eefff5;font-size:.79rem;font-weight:800;padding:9px 16px}
+.market-add:hover{background:#52a183}
+.market-food-card.picked .market-add{background:#5bd9aa;color:#09271e}
+.food-source-link{font-size:.7rem;color:#bdd2e8;white-space:nowrap}
+.food-source-link:hover{color:#78efc5}
+.meal-picker-form{position:sticky;top:16px}
+.selected-food-preview{border-radius:13px;background:linear-gradient(140deg,#213b36,#1a2e3b);border:1px solid #3b6358;padding:16px;display:flex;flex-direction:column;gap:7px}
+.selected-food-preview strong{font:800 1rem/1.35 Manrope}
+.selected-food-preview span:not(.eyebrow){font-size:.77rem;color:#b8c9d4}
+.nutrient-preview{font-size:.82rem;border-left:3px solid #54c5a3;background:#20342f;border-radius:0 10px 10px 0;padding:11px;color:#c8e8dc}
+.manual-meal-details{border:1px solid #3b4f60;border-radius:12px;padding:13px 15px}
+.manual-meal-details summary{color:#b6c8d6;font-weight:700;cursor:pointer}
+.manual-meal-details summary:hover{color:#73ecbe}
+.manual-fields{display:flex;flex-direction:column;gap:13px;margin-top:18px}
+@media(max-width:1200px){.market-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.food-picker-grid{grid-template-columns:1fr}}
+@media(max-width:600px){.market-filter-grid{grid-template-columns:1fr}.filter-head{align-items:flex-start}.catalog-actions{align-items:flex-start;flex-direction:column-reverse}.catalog-actions button{width:100%}.market-food-card{gap:8px;padding:12px}.market-add{padding:8px 12px}.market-card-actions{gap:8px}.meal-picker-form{position:static}.source-results{max-height:465px}}
