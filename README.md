@@ -12,6 +12,29 @@ La selección registra el nombre, comercio y cantidad. Calcula kcal/macros autom
 
 **Validación pendiente:** probar la interfaz de usuario autenticada y la búsqueda externa con una sesión real; comprobar respuesta del navegador y la primera comida antes de asumir que está lista para uso continuo.
 
+## Estimaciones de calorías y macronutrientes
+
+NutriTrack contiene **118 estimaciones nutricionales** entre 123 referencias almacenadas en restaurantes y supermercados (noviembre 2026), con **5 entradas pendientes** cuyos nombres designan menús/combos ambiguos y no permiten una porción defendible.
+
+**Método utilizado (orientativo, no validado por plato):**
+
+- Para productos envasados sin etiqueta transcrita: perfil genérico comparable por **100 g**, sin afirmar que equivalga a la fórmula de la marca.
+- Para restaurantes: una **receta ilustrativa** por plato según ingredientes publicados, pesos conocidos cuando se mencionan y supuestos de porción, salsas, aceites o guarniciones cuando no se conoce su peso.
+- Se muestra energía como una aproximación de `4 kcal/g proteína + 4 kcal/g carbohidrato + 9 kcal/g grasa`. Son factores generales, no siempre iguales a los energéticos específicos de cada alimento.
+- Cada referencia estimada conserva `tipo_nutricion`, `descripcion_estimacion`, `porcion_referencia_g`, `kcal_min/max` y `margen_incertidumbre_pct` en `public.articulos_catalogo`. Los rangos son **escenarios de sensibilidad** de ±30 a ±75 % elegidos por incertidumbre de receta o porción, **no intervalos estadísticos ni garantías de precisión**.
+- En pantalla, las opciones marcadas **«Estimación»** muestran kcal aproximadas, rango y distribución de proteínas, carbohidratos y grasas; se ajustan cuando cambia el peso o número de porciones.
+- Al registrar una comida estimada, se almacena el estado `estimado` y el rango escalado. El histórico y los totales del día advierten que incluyen estimaciones. La información declarada por un fabricante debe prevalecer sobre este modelo cuando se pueda comprobar.
+- **Limitación principal:** las cifras modelo son heurísticas diseñadas manualmente. No hemos comprobado un registro específico de USDA/ICBF para cada ingrediente ni verificado pesos reales de cada plato. No son valores suministrados por Porthos ni por las demás cadenas.
+- Para hamburguesas Porthos, la carta de 2024 indica que incluyen cascos de papa y por ello el modelo asume ambos componentes. Cortes de carne a la parrilla se estiman **sin** guarniciones cuando no están descritas. Bebidas se modelan a veces como azucaradas: si se sirven sin azúcar sus kcal pueden ser mucho menores.
+- Menús demasiado ambiguos sin estimación: `crepes-menu-costa`, `frisby-menu-solidario`, `kfc-bucket-full-ahorro`, `kfc-combos`, `subway-series`.
+
+Fuentes científicas para contrastar **composición genérica**, no fichas verificadas de productos específicos:
+- [ICBF: Tabla de Composición de Alimentos Colombianos](https://www.icbf.gov.co/tabla-de-composicion-de-alimentos-colombianos-tcac).
+- [USDA FoodData Central](https://fdc.nal.usda.gov/data-documentation/).
+- [FAO: energía procedente de proteínas, carbohidratos y grasas](https://www.fao.org/4/af282e/AF282E04.htm).
+- [NIDDK: peso de porciones y raciones](https://www.niddk.nih.gov/health-information/weight-management/just-enough-food-portions).
+- [Estudio sobre diferencias entre calorías declaradas y medidas en restaurantes (2011)](https://pmc.ncbi.nlm.nih.gov/articles/PMC4363942/).
+
 ## Restaurante frecuente: Porthos Steakhouse & Pub
 
 Porthos fue agregado como primera opción en el selector de restaurantes, con 51 referencias organizadas en 13 categorías (hamburguesas, parrilla, entradas, almuerzos, acompañamientos y otras opciones).
