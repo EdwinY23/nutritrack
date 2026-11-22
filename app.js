@@ -316,7 +316,7 @@ function calculateCatalogValues(){
    }
    const haveKcal=$('mealKcal').value!=='';
    $('nutritionPreview').textContent=haveKcal?
-     'Porción elegida: '+decimal($('mealKcal').value,1)+' kcal · '+decimal($('mealProtein').value||0,1)+' g proteína (otros datos pueden faltar).'
+     'Porción elegida: '+decimal($('mealKcal').value,1)+' kcal'+($('mealProtein').value!==''?' · '+decimal($('mealProtein').value,1)+' g proteína':' · proteína sin información')+'. Revisa la etiqueta si está disponible.'
      :'Este artículo no publica calorías verificables en el catálogo consultado. Se registrará sin calorías, sin inventar una estimación.';
    return;
  }
@@ -406,7 +406,7 @@ $('foodForm').addEventListener('submit',async e=>{
  const {error}=await supabase.from('alimentos_catalogo').insert(record);
  formBusy(form,false);
  if(error){notify('No se pudo guardar el alimento: '+error.message,true);return;}
- form.reset();notify('Alimento añadido a tu catálogo');await loadFoods();
+ form.reset();notify('Alimento añadido a tu catálogo');await loadFoods();if(selectedMode()==='personal'){rebuildMarketCategories();renderMarketResults();}
 });
 $('mealForm').addEventListener('submit',async e=>{
  e.preventDefault();if(!state.user)return;
