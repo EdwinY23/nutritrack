@@ -283,6 +283,116 @@ $('pairDeviceBtn').addEventListener('click',async()=>{
  const b=document.createElement('button');b.type='button';b.className='text-button';b.textContent='Copiar credencial';b.onclick=async()=>{try{await navigator.clipboard.writeText(inp.value);notify('Credencial copiada. No la compartas.');}catch{inp.select();notify('Selecciona y copia la credencial.');}};box.append(b);
  notify('Credencial generada para tu iPhone. Aún falta configurar la acción de envío en Atajos.');
 });
+// Import previously displayed iOS Shortcuts text without changing or sharing the shortcuts.
+function normalizeLabel(s) {
+  return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+}
+function readLocalizedNumber(raw, isInteger=false) {
+  if(!raw) return null;
+  let s=raw.trim().replace(/[\u00a0\s]/g,'');
+  if(!/^\d[\d.,]*$/.test(s))return null;
+  const comma=s.lastIndexOf(','),dot=s.lastIndexOf('.');
+  if(comma>=0 && dot>=0){
+    const decimal=comma>dot?',':'.',group=comma>dot?'.':',';
+    s=s.split(group).join('').replace(decimal,'.');
+  }else if(isInteger){
+    s=s.replace(/[.,]/g,'');
+  }else if(comma>=0){
+    s=s.replace(',','.');
+  }
+  const n=Number(s);
+  return Number.isFinite(n)&&n>=0?n:null;
+}
+function parseMetricLine(line) {
+  const label=normalizeLabel(line);
+  let field=null;
+  if(/\bpasos\b|\bsteps\b/.test(label))field='pasos';
+  else if(/(energia|calorias|kcal).{0,22}activ[ao]s?|activ[ao]s?.{0,22}(energia|calorias)/.test(label))field='calorias_activas';
+  else if(/(energia|calorias|kcal).{0,30}(reposo|basal)|reposo.{0,20}(energia|calorias)/.test(label))field='calorias_reposo';
+  if(!field)return null;
+  let target=line.includes(':')?line.substring(line.indexOf(':')+1):line.includes('=')?line.substring(line.indexOf('=')+1):line;
+  if(!target.trim()||!/[\d]/.test(target))return null;
+  const matches=target.match(/\d[\d.,\s]*\d|\d/g)||[];
+  if(!matches.length)return null;
+  const value=readLocalizedNumber(matches[matches.length-1],field==='pasos');
+  if(value==null)return null;
+  if(field==='pasos'&&(!Number.isInteger(value)||value>100000))return null;
+  if(field!=='pasos'&&value>12000)return null;
+  return {field,value};
+}
+function interpretShortcutText(text){
+  const groups=[];let current=null;
+  for(const line of text.replace(/\r/g,'').split('\n')){
+    const norm=normalizeLabel(line.trim()).replace(/[=#*_\-]+/g,' ').trim();
+    const dayMarker=(!/\d/.test(norm)&&!/\bpasos\b|\bcalorias\b|\benergia\b/.test(norm))?
+      (/\bhoy\b/.test(norm)?'hoy':/\bayer\b/.test(norm)?'ayer':null):null;
+    if(dayMarker){
+      current={period:dayMarker,lines:[]};groups.push(current);
+    }else if(current)current.lines.push(line);
+  }
+  if(!groups.length)groups.push({period:'hoy',lines:text.split(/\r?\n/)});
+  const seen=new Set();
+  return groups.filter(g=>!seen.has(g.period)&&seen.add(g.period)).slice(0,2).map(g=>{
+    const found={pasos:null,calorias_activas:null,calorias_reposo:null};
+    for(const line of g.lines){
+      const metric=parseMetricLine(line);if(metric)found[metric.field]=metric.value;
+    }
+    return {period:g.period,fecha:g.period==='ayer'?dayOffset(todayBogota(),-1):todayBogota(),
+      estado:g.period==='ayer'?'consolidado':'provisional',...found};
+  });
+}
+function renderImportPreview(records){
+  $('importFields').innerHTML=records.map(r=>'<div class="import-day" data-import-period="'+safe(r.period)+'">'+
+    '<h3>'+ (r.period==='ayer'?'AYER':'HOY')+'</h3>'+
+    '<label class="full">Fecha<input class="import-date" type="date" value="'+safe(r.fecha)+'" required></label>'+
+    '<label class="full">Pasos<input class="import-steps" type="number" min="0" max="100000" step="1" value="'+(r.pasos??'')+'" placeholder="Verifica este valor"></label>'+
+    '<label>Calorías activas (kcal)<input class="import-active" type="number" min="0" max="12000" step="any" value="'+(r.calorias_activas??'')+'"></label>'+
+    '<label>Calorías en reposo (kcal)<input class="import-rest" type="number" min="0" max="12000" step="any" value="'+(r.calorias_reposo??'')+'"></label>'+
+    '<label class="full">Estado<select class="import-state">'+
+       '<option value="provisional" '+(r.estado==='provisional'?'selected':'')+'>Provisional</option>'+
+       '<option value="consolidado" '+(r.estado==='consolidado'?'selected':'')+'>Consolidado</option></select></label>'+
+    '<small>Revisa todos los campos antes de guardar.</small></div>').join('');
+  $('importPreview').classList.remove('hidden');
+}
+$('parseShortcutsBtn').addEventListener('click',()=>{
+  const raw=$('shortcutsRaw').value.trim();
+  if(!raw){notify('Pega primero el resultado completo que muestra tu atajo.',true);return;}
+  const records=interpretShortcutText(raw);
+  renderImportPreview(records);
+  const complete=records.filter(r=>Object.entries(r).filter(([key])=>['pasos','calorias_activas','calorias_reposo'].includes(key)).every(([,v])=>v!=null)).length;
+  notify(complete===records.length?
+    'Análisis terminado: revisa los '+records.length+' registros antes de guardarlos.':
+    'Algunos valores no se reconocieron. Corrígelos en la vista previa antes de guardar.',complete!==records.length);
+});
+$('saveImportedBtn').addEventListener('click',async()=>{
+  if(!state.user){notify('Inicia sesión primero.',true);return;}
+  const cards=[...document.querySelectorAll('.import-day')];const dates=new Set();const records=[];
+  for(const card of cards){
+    const fecha=card.querySelector('.import-date').value;
+    const pasos=Number(card.querySelector('.import-steps').value);
+    const active=Number(card.querySelector('.import-active').value);
+    const rest=Number(card.querySelector('.import-rest').value);
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha)||dates.has(fecha)||
+       !card.querySelector('.import-steps').value.trim()||
+       !card.querySelector('.import-active').value.trim()||
+       !card.querySelector('.import-rest').value.trim()||
+       !Number.isInteger(pasos)||pasos<0||pasos>100000||
+       ![active,rest].every(n=>Number.isFinite(n)&&n>=0&&n<=12000)){
+        notify('Revisa las fechas y completa correctamente los tres valores numéricos de cada día.',true);return;
+    }
+    dates.add(fecha);
+    records.push({usuario_id:state.user.id,fecha,pasos,calorias_activas:active,calorias_reposo:rest,
+      estado:card.querySelector('.import-state').value,fuente:'apple_watch',actualizado_en:new Date().toISOString()});
+  }
+  const button=$('saveImportedBtn');button.disabled=true;
+  const {data,error}=await supabase.from('actividad_diaria').upsert(records,{onConflict:'usuario_id,fecha'}).select('fecha');
+  button.disabled=false;
+  if(error){notify('Supabase no guardó los datos: '+error.message,true);return;}
+  if(!data||data.length!==records.length){notify('El servidor no confirmó todos los registros; revisa los datos.',true);return;}
+  notify('Guardados y verificados '+data.length+' registros de Apple Health.');
+  await refreshDateData();
+});
+
 void supabase.auth.getSession().then(({data})=>{
  if(data.session?.user && !state.user){
   state.user=data.session.user;
