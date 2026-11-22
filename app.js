@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.95.0';
 const PROJECT_URL = 'https://qrnmqlanzmktboxweozf.supabase.co';
 const PUBLIC_KEY = 'sb_publishable_gAPlmvuoNQxPslRVJ1L8oA_Mkky3Sh7'; // Publishable key only: never put service role keys in GitHub.
 const supabase = createClient(PROJECT_URL, PUBLIC_KEY, {auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-const state = { user: null, isSignUp: false, date: todayBogota(), meals: [], foods: [], measurements: [], summary: [], active: 'inicio', marketVenues: [], marketProducts: [], externalProducts: [], visibleMarketProducts: [], selectedMealItem: null };
+const state = { user: null, isSignUp: false, date: todayBogota(), meals: [], foods: [], measurements: [], summary: [], active: 'inicio', marketVenues: [], marketProducts: [], externalProducts: [], visibleMarketProducts: [], selectedMealItem: null, onlineRestaurants: [], onlineMenuItems: [], onlineSelectedVenue: null };
 const $ = (id) => document.getElementById(id);
 const empty = (label) => '<div class="empty-state">' + safe(label) + '</div>';
 function safe(s){ return String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -202,8 +202,9 @@ function changeMarketMode(){
   const mode=selectedMode();
   const chooser=$('sourceVenue'), wrap=$('sourceVenueWrap');
   const needsVenue=mode==='supermercado'||mode==='restaurante';
+  $('onlineRestaurantBox').classList.toggle('hidden',mode!=='restaurante-online');
   wrap.classList.toggle('hidden',!needsVenue);
-  $('sourceCategoryWrap').classList.toggle('hidden',mode==='general');
+  $('sourceCategoryWrap').classList.toggle('hidden',mode==='general'||(mode==='restaurante-online'&&!state.onlineMenuItems.length));
   $('sourceFetch').classList.toggle('hidden',mode!=='general');
   chooser.replaceChildren();
   const matching=state.marketVenues.filter(v=>v.tipo===mode);
@@ -215,6 +216,8 @@ function changeMarketMode(){
     $('catalogHint').textContent='Busca en Open Food Facts, una base abierta de productos envasados. No acredita que se vendan en D1 u Olímpica; comprueba la etiqueta antes de confiar en los macros.';
   }else if(mode==='personal'){
     $('catalogHint').textContent='Tus alimentos guardados de forma privada. Puedes añadir más desde la pestaña Catálogo.';
+  }else if(mode==='restaurante-online'){
+    $('catalogHint').textContent='Escribe el nombre del restaurante y pulsa Buscar en internet. Si su web no permite importar platos, te enseñaremos su carta oficial.';
   }else{
     $('catalogHint').textContent='Referencias enlazadas a catálogos oficiales. Los menús cambian y la disponibilidad varía por sucursal; si no se publican nutrientes, no mostramos valores inventados.';
   }
@@ -225,6 +228,7 @@ function rebuildMarketCategories(){
   const old=categories.value;
   const mode=selectedMode(),venue=$('sourceVenue').value;
   const all=mode==='personal'?state.foods.map(f=>f.categoria||'Otros'):
+    mode==='restaurante-online'?state.onlineMenuItems.map(f=>f.categoria||'Menú'):
     state.marketProducts.filter(p=>p.establecimiento_id===venue).map(p=>p.categoria);
   const values=[...new Set(all.filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
   categories.replaceChildren();
@@ -237,6 +241,7 @@ function normalizedMarketItems(){
   if(mode==='general')return state.externalProducts.map(p=>({
     ...p,kind:'externo',establecimiento_nombre:'Open Food Facts',base_nutricional:'100g'
   }));
+  if(mode==='restaurante-online')return state.onlineMenuItems.map(f=>({...f,kind:f.kind||'restaurante-remoto',establecimiento_nombre:state.onlineSelectedVenue?.nombre||'Restaurante online'}));
   if(mode==='personal')return state.foods.map(f=>({
     id:'personal-'+f.id,originalId:f.id,kind:'personal',nombre:f.nombre,
     marca:f.marca,establecimiento_nombre:'Mis alimentos',categoria:f.categoria||'Otros',
@@ -262,16 +267,17 @@ function renderMarketResults(){
   state.visibleMarketProducts=items;
   $('catalogCount').textContent=items.length+' opciones';
   $('sourceResultSubtitle').textContent=mode==='general'?'Resultados de Open Food Facts':
-    mode==='personal'?'Tus alimentos guardados':(marketVenue()?.nombre||'Selecciona un establecimiento');
+    mode==='personal'?'Tus alimentos guardados':mode==='restaurante-online'?(state.onlineSelectedVenue?.nombre||'Busca primero un restaurante'):(marketVenue()?.nombre||'Selecciona un establecimiento');
   const target=$('sourceResults');
   if(!items.length){
     target.innerHTML=empty(mode==='general'?'Introduce un nombre y pulsa «Buscar en Open Food Facts».':
+      mode==='restaurante-online'?'Busca un restaurante por nombre y elige uno. Cuando su menú no pueda leerse automáticamente, abre su carta oficial.':
       'No se encontraron productos con estos filtros. Prueba otra categoría o término.');return;
   }
   target.innerHTML=items.slice(0,100).map(item=>{
     const hasKcal=item.kcal!=null;
     const hasAny=[item.kcal,item.proteina_g,item.carbohidratos_g,item.grasas_g].some(n=>n!=null);
-    const display=hasKcal?decimal(item.kcal,1)+' kcal/'+(item.kind==='restaurante'?'porción':'100 g'):
+    const display=hasKcal?decimal(item.kcal,1)+' kcal/'+(item.kind?.startsWith('restaurante')?'porción':'100 g'):
        hasAny?'Valores nutricionales parciales':'Sin calorías publicadas';
     const supporting=item.marca?item.marca+' · ':'';
     const pack=item.cantidad_presentacion_g?' · presentación '+decimal(item.cantidad_presentacion_g)+' g':'';
@@ -289,7 +295,7 @@ function chooseMarketProduct(id){
   const item=state.visibleMarketProducts.find(p=>p.id===id);
   if(!item)return;
   state.selectedMealItem={...item};
-  const isMenu=item.kind==='restaurante';
+  const isMenu=item.kind==='restaurante'||item.kind==='restaurante-remoto';
   const form=$('mealForm');
   form.elements.namedItem('alimento_nombre').value=item.nombre;
   form.elements.namedItem('descripcion').value=item.nombre+' · '+item.establecimiento_nombre;
@@ -307,7 +313,7 @@ function calculateCatalogValues(){
  const selected=state.selectedMealItem;
  if(selected){
    const amount=Number($('mealGrams').value);
-   const isMenu=selected.kind==='restaurante';
+   const isMenu=selected.kind==='restaurante'||selected.kind==='restaurante-remoto';
    const fraction=isMenu?amount:amount/100;
    const pairs=[['mealKcal','kcal'],['mealProtein','proteina_g'],['mealCarbs','carbohidratos_g'],['mealFat','grasas_g']];
    for(const [field,key] of pairs){
@@ -415,9 +421,9 @@ $('mealForm').addEventListener('submit',async e=>{
  const form=e.currentTarget;formBusy(form,true);const fd=new FormData(form);
  const photo=fd.get('foto'),hasPhoto=photo instanceof File&&photo.size>0;
  const kcal=numForm(fd,'calorias_kcal'),protein=numForm(fd,'proteina_g'),carbs=numForm(fd,'carbohidratos_g'),fat=numForm(fd,'grasas_g');
- const quantity=numForm(fd,'cantidad_g'),grams=chosen?.kind==='restaurante'?null:quantity;
+ const quantity=numForm(fd,'cantidad_g'),grams=chosen?.kind?.startsWith('restaurante')?null:quantity;
  const foodName=chosen?.nombre||String(fd.get('alimento_nombre')||'').trim();
- const description=chosen?chosen.nombre+' · '+chosen.establecimiento_nombre+(chosen.kind==='restaurante'&&quantity!==1?' · '+quantity+' porciones':''):String(fd.get('descripcion')||'').trim();
+ const description=chosen?chosen.nombre+' · '+chosen.establecimiento_nombre+(chosen.kind?.startsWith('restaurante')&&quantity!==1?' · '+quantity+' porciones':''):String(fd.get('descripcion')||'').trim();
  if(!foodName&&!description){notify('Indica al menos el nombre del alimento o la descripción del plato.',true);formBusy(form,false);return;}
  let photoPath=null;
  if(hasPhoto){
@@ -430,10 +436,10 @@ $('mealForm').addEventListener('submit',async e=>{
  }
  const hasNutrients=[kcal,protein,carbs,fat].some(v=>v!=null);
  const hasEstimate=fd.get('metodo')==='foto_estimacion'||chosen?.kind==='externo';
- const method=chosen?.kind==='restaurante'?'restaurante':chosen?.kind==='externo'?'tabla':fd.get('metodo');
+ const method=chosen?.kind?.startsWith('restaurante')?'restaurante':chosen?.kind==='externo'?'tabla':fd.get('metodo');
  if(chosen&&!(quantity>0)){notify('Introduce una cantidad válida.',true);formBusy(form,false);return;}
  const meal={usuario_id:state.user.id,fecha:state.date,hora:fd.get('hora')||null,tipo:fd.get('tipo'),descripcion:description||foodName,
-  foto_ruta:photoPath,origen:hasPhoto?'foto':chosen?.kind==='restaurante'?'restaurante':'manual',estado_analisis:kcal==null?'pendiente':hasEstimate?'estimado':'confirmado'};
+  foto_ruta:photoPath,origen:hasPhoto?'foto':chosen?.kind?.startsWith('restaurante')?'restaurante':'manual',estado_analisis:kcal==null?'pendiente':hasEstimate?'estimado':'confirmado'};
  const {data:created,error}=await supabase.from('comidas').insert(meal).select('id').single();
  if(error){if(photoPath)await supabase.storage.from('fotos_comidas').remove([photoPath]);notify('No se pudo guardar la comida: '+error.message,true);formBusy(form,false);return;}
  if(foodName||hasNutrients){
