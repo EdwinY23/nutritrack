@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="description" content="NutriTrack: nutrición, actividad y recomposición corporal.">
+  <title>NutriTrack · Mi progreso</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-mark">N</span><div><strong>NutriTrack</strong><small>Recomposición corporal</small></div></div>
+      <nav aria-label="Secciones">
+        <button class="nav-btn active" data-tab="inicio"><span>◫</span> Resumen</button>
+        <button class="nav-btn" data-tab="comidas"><span>◩</span> Mis comidas</button>
+        <button class="nav-btn" data-tab="catalogo"><span>▦</span> Catálogo</button>
+        <button class="nav-btn" data-tab="cuerpo"><span>◎</span> Composición corporal</button>
+        <button class="nav-btn" data-tab="ajustes"><span>⚙</span> Ajustes</button>
+      </nav>
+      <div class="side-note"><strong>Tu evolución, sin prisas.</strong><p>Las calorías y la bioimpedancia son estimaciones. Evalúa tendencias, fuerza y hábitos.</p></div>
+    </aside>
+    <div class="workspace">
+      <header class="topbar">
+        <div class="mobile-brand"><span class="brand-mark">N</span><strong>NutriTrack</strong></div>
+        <div class="topbar-left"><span class="eyebrow">SEGUIMIENTO PERSONAL</span><strong id="pageTitle">Resumen diario</strong></div>
+        <div class="topbar-right"><label class="date-control">Fecha <input id="selectedDate" type="date" aria-label="Fecha para consultar"></label><span id="userName" class="subtle">Sin sesión</span><button id="signOutBtn" class="small-button hidden">Salir</button></div>
+      </header>
+      <main id="mainContent">
+        <div id="appMessage" class="notice hidden" role="status"></div>
+        <section id="tab-inicio" class="tab active">
+          <div class="page-intro"><div><span class="eyebrow">TU DÍA, EN UNA MIRADA</span><h1>Tu progreso se construye cada día.</h1><p>Lo que comes, cómo te mueves y cómo responde tu cuerpo, en un solo lugar.</p></div><button class="primary jump" data-jump="comidas">+ Registrar comida</button></div>
+          <div class="kpi-grid">
+            <article class="kpi"><span class="kpi-icon green">◐</span><span class="kpi-label">Calorías registradas</span><div class="kpi-value"><b id="kcalToday">—</b><small>kcal</small></div><p id="kcalContext">Sin registros en esta fecha</p></article>
+            <article class="kpi"><span class="kpi-icon violet">◆</span><span class="kpi-label">Proteína registrada</span><div class="kpi-value"><b id="proteinToday">—</b><small>g</small></div><p id="proteinContext">Añade una comida para empezar</p></article>
+            <article class="kpi"><span class="kpi-icon amber">↗</span><span class="kpi-label">Energía activa</span><div class="kpi-value"><b id="activeToday">—</b><small>kcal</small></div><p id="activityContext">Esperando Apple Health</p></article>
+            <article class="kpi"><span class="kpi-icon blue">◌</span><span class="kpi-label">Pasos</span><div class="kpi-value"><b id="stepsToday">—</b><small>pasos</small></div><p id="stepsContext">Esperando sincronización</p></article>
+          </div>
+          <div class="panel-grid">
+            <section class="panel"><div class="panel-header"><div><h2>Actividad y alimentación</h2><p>Últimos siete días con registros disponibles</p></div></div><div id="weekChart" class="week-chart empty">Todavía no hay datos para mostrar.</div><p class="fineprint">Calorías consumidas registradas ≠ consumo total si faltan comidas. Las cifras del reloj son estimaciones.</p></section>
+            <section class="panel"><div class="panel-header"><div><h2>Detalle del día</h2><p>Totales e integridad del registro</p></div></div><div class="detail-rows"><div><span>Carbohidratos</span><b id="carbsToday">—</b></div><div><span>Grasas</span><b id="fatToday">—</b></div><div><span>Energía en reposo</span><b id="restToday">—</b></div><div><span>Gasto estimado del reloj</span><b id="totalBurn">—</b></div><div><span>Comidas registradas</span><b id="mealCount">—</b></div></div><div id="dayStatus" class="status-note">Registra tus primeras comidas para ver el balance.</div></section>
+          </div>
+          <section class="panel"><div class="panel-header"><div><h2>Comidas del día</h2><p>Tu historial, con posibilidad de corregir porciones</p></div><button class="text-button jump" data-jump="comidas">Ver todas</button></div><div id="todayMeals" class="meal-list"></div></section>
+        </section>
+        <section id="tab-comidas" class="tab">
+          <div class="section-heading"><div><span class="eyebrow">ALIMENTACIÓN</span><h1>Registrar comida</h1><p>Usa datos de etiquetas o tablas cuando los tengas. Una foto no mide por sí sola las porciones.</p></div></div>
+          <div class="two-column">
+            <form id="mealForm" class="panel form-card">
+              <h2>Nueva comida</h2>
+              <div class="form-row"><label>Tipo de comida<select name="tipo"><option value="desayuno">Desayuno</option><option value="almuerzo">Almuerzo</option><option value="cena">Cena</option><option value="merienda">Merienda</option><option value="otro">Otro</option></select></label><label>Hora<input name="hora" type="time"></label></div>
+              <label>Descripción del plato<input name="descripcion" type="text" maxlength="240" placeholder="Ej. Pollo, arroz y ensalada"></label>
+              <label>Buscar alimento guardado<select id="catalogSelect" name="alimento_id"><option value="">Introducción manual / sin alimento guardado</option></select></label>
+              <label>Nombre del alimento o ingrediente<input name="alimento_nombre" type="text" maxlength="150" placeholder="Ej. Pechuga de pollo"></label>
+              <div class="form-row"><label>Cantidad (gramos)<input id="mealGrams" name="cantidad_g" type="number" min="0.1" step="0.1" placeholder="150"></label><label>Calorías (kcal)<input id="mealKcal" name="calorias_kcal" type="number" min="0" step="0.1" placeholder="250"></label></div>
+              <div class="form-row three"><label>Proteína (g)<input id="mealProtein" name="proteina_g" type="number" min="0" step="0.1"></label><label>Carbohidratos (g)<input id="mealCarbs" name="carbohidratos_g" type="number" min="0" step="0.1"></label><label>Grasas (g)<input id="mealFat" name="grasas_g" type="number" min="0" step="0.1"></label></div>
+              <label>Origen de la información<select name="metodo"><option value="manual">Introducido manualmente</option><option value="etiqueta">Etiqueta nutricional</option><option value="tabla">Tabla de composición</option><option value="restaurante">Restaurante</option><option value="foto_estimacion">Estimación a partir de foto</option></select></label>
+              <label>Fotografía privada (opcional)<input name="foto" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif"></label>
+              <p class="fineprint">La fotografía se guarda en un espacio privado. El reconocimiento automático con IA todavía no está conectado. Puedes corregir los valores luego.</p>
+              <button class="primary" type="submit">Guardar comida</button>
+            </form>
+            <section class="panel"><div class="panel-header"><div><h2>Historial del día</h2><p id="mealDateLabel"></p></div></div><div id="mealHistory" class="meal-list"></div></section>
+          </div>
+        </section>
+        <section id="tab-catalogo" class="tab">
+          <div class="section-heading"><div><span class="eyebrow">BASE PERSONAL DE ALIMENTOS</span><h1>Catálogo nutricional</h1><p>Crea fichas de productos colombianos, preparaciones y restaurantes con fuentes identificables.</p></div></div>
+          <div class="two-column">
+            <form id="foodForm" class="panel form-card">
+              <h2>Añadir alimento</h2>
+              <label>Nombre<input name="nombre" required maxlength="150" placeholder="Ej. Arepa de huevo"></label>
+              <div class="form-row"><label>Marca (opcional)<input name="marca" maxlength="100"></label><label>Restaurante (opcional)<input name="restaurante" maxlength="100"></label></div>
+              <label>Categoría<input name="categoria" maxlength="80" placeholder="Comida costeña, mecatos, bebidas..."></label>
+              <div class="form-row"><label>Kcal por 100 g<input name="kcal_100g" type="number" min="0" step="0.1"></label><label>Porción habitual (g)<input name="porcion_habitual_g" type="number" min="0.1" step="0.1"></label></div>
+              <div class="form-row three"><label>Proteína/100 g<input name="proteina_100g" type="number" min="0" max="100" step="0.1"></label><label>Carbohidratos/100 g<input name="carbohidratos_100g" type="number" min="0" max="100" step="0.1"></label><label>Grasas/100 g<input name="grasas_100g" type="number" min="0" max="100" step="0.1"></label></div>
+              <div class="form-row"><label>Origen<select name="origen_dato"><option value="manual">Manual</option><option value="etiqueta">Etiqueta</option><option value="icbf">ICBF</option><option value="openfoodfacts">Open Food Facts</option><option value="usda">USDA</option><option value="restaurante">Restaurante</option><option value="estimacion">Estimación</option></select></label><label>URL fuente (opcional)<input name="url_fuente" type="url" placeholder="https://..."></label></div>
+              <button class="primary" type="submit">Guardar alimento</button>
+            </form>
+            <section class="panel"><div class="panel-header"><div><h2>Mis alimentos</h2><p>Datos guardados en tu cuenta</p></div></div><label class="search-label">Buscar<input id="foodSearch" type="search" placeholder="Nombre, marca o restaurante"></label><div id="foodsList" class="food-list"></div></section>
+          </div>
+        </section>
+        <section id="tab-cuerpo" class="tab">
+          <div class="section-heading"><div><span class="eyebrow">COMPOSICIÓN CORPORAL</span><h1>Tu cuerpo en perspectiva</h1><p>El peso y la bioimpedancia son referencias; compara medidas repetidas con la misma técnica.</p></div></div>
+          <div class="two-column">
+            <form id="bodyForm" class="panel form-card">
+              <h2>Agregar o actualizar medición</h2>
+              <div class="form-row"><label>Peso (kg)<input name="peso_kg" type="number" min="20" max="350" step="0.01"></label><label>Cintura (cm)<input name="cintura_cm" type="number" min="30" max="250" step="0.1"></label></div>
+              <div class="form-row"><label>Cadera (cm)<input name="cadera_cm" type="number" min="30" max="250" step="0.1"></label><label>Grasa corporal (%)<input name="grasa_corporal_pct" type="number" min="0" max="80" step="0.1"></label></div>
+              <div class="form-row"><label>Músculo esquelético (kg)<input name="masa_muscular_esqueletica_kg" type="number" min="0" max="150" step="0.1"></label><label>Metabolismo basal (kcal)<input name="metabolismo_basal_kcal" type="number" min="0" max="6000" step="1"></label></div>
+              <label class="check"><input type="checkbox" name="cintura_provisional"> Cintura provisional (medida pendiente de confirmar)</label>
+              <label>Notas<input name="notas" maxlength="400" placeholder="Ej. Medición al despertar"></label>
+              <button class="primary" type="submit">Guardar medición para la fecha seleccionada</button>
+              <button id="prefillBaseline" class="text-button" type="button">Usar referencia inicial del 15/11/2026</button>
+            </form>
+            <section class="panel"><div class="panel-header"><div><h2>Historial corporal</h2><p>Registros de la báscula y mediciones manuales</p></div></div><div id="bodyHistory" class="history-list"></div></section>
+          </div>
+        </section>
+        <section id="tab-ajustes" class="tab">
+          <div class="section-heading"><div><span class="eyebrow">CONFIGURACIÓN</span><h1>Mi cuenta y sincronización</h1><p>Tu información privada se guarda en Supabase, no en el repositorio público.</p></div></div>
+          <section class="panel settings-panel"><h2>Cuenta</h2><p id="accountInfo">Inicia sesión para sincronizar tus datos.</p><hr><h2>Apple Health</h2><p>Los atajos de hoy y ayer ya están preparados en tu iPhone. La vinculación del dispositivo con el servidor todavía requiere configurar una credencial individual.</p><p id="syncInfo" class="status-note">Sincronización del iPhone pendiente de vincular.</p><hr><h2>Privacidad y datos</h2><p>Las fotos se almacenan en un bucket privado; el catálogo y el historial están protegidos con reglas por usuario. Las estimaciones nutricionales son orientativas.</p></section>
+        </section>
+      </main>
+    </div>
+  </div>
+  <div id="authOverlay" class="auth-overlay"><div class="auth-card"><div class="brand auth-brand"><span class="brand-mark">N</span><div><strong>NutriTrack</strong><small>Tu espacio privado</small></div></div><h1>Bienvenido a tu progreso</h1><p>Inicia sesión o crea tu cuenta personal para registrar tus comidas y actividad.</p><form id="authForm"><label>Correo electrónico<input name="email" type="email" autocomplete="email" required placeholder="tu@correo.com"></label><label>Contraseña<input name="password" type="password" autocomplete="current-password" minlength="6" required placeholder="Mínimo 6 caracteres"></label><button class="primary" type="submit" id="authSubmit">Iniciar sesión</button></form><button id="toggleAuth" class="text-button">¿Primera vez? Crear una cuenta</button><p id="authMessage" class="fineprint" role="status"></p><p class="fineprint">El inicio de sesión con GitHub en Supabase Dashboard no crea automáticamente una cuenta de acceso a NutriTrack.</p></div></div>
+  <nav class="mobile-tabs" aria-label="Navegación móvil"><button data-tab="inicio" class="active">Inicio</button><button data-tab="comidas">Comidas</button><button data-tab="catalogo">Catálogo</button><button data-tab="cuerpo">Cuerpo</button><button data-tab="ajustes">Ajustes</button></nav>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
