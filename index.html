@@ -96,7 +96,18 @@
         </section>
         <section id="tab-ajustes" class="tab">
           <div class="section-heading"><div><span class="eyebrow">CONFIGURACIÓN</span><h1>Mi cuenta y sincronización</h1><p>Tu información privada se guarda en Supabase, no en el repositorio público.</p></div></div>
-          <section class="panel settings-panel"><h2>Cuenta</h2><p id="accountInfo">Inicia sesión para sincronizar tus datos.</p><hr><h2>Apple Health</h2><p>Los atajos de hoy y ayer ya están preparados en tu iPhone. La vinculación del dispositivo con el servidor todavía requiere configurar una credencial individual.</p><p id="syncInfo" class="status-note">Sincronización del iPhone pendiente de vincular.</p><hr><h2>Privacidad y datos</h2><p>Las fotos se almacenan en un bucket privado; el catálogo y el historial están protegidos con reglas por usuario. Las estimaciones nutricionales son orientativas.</p></section>
+          <section class="panel settings-panel"><h2>Cuenta</h2><p id="accountInfo">Inicia sesión para sincronizar tus datos.</p><hr><h2>Apple Health</h2><p>Los atajos de hoy y ayer ya están preparados en tu iPhone. La vinculación del dispositivo con el servidor todavía requiere configurar una credencial individual.</p><p id="syncInfo" class="status-note">Sincronización del iPhone pendiente de vincular.</p><hr><h2>Importar texto de Apple Health</h2><p>Una alternativa sin modificar tus tres atajos: ejecuta «NutriTrack - Sincronización», copia el resultado de HOY y AYER, pégalo aquí y revisa los valores antes de guardarlos. El texto se analiza en tu navegador; solo los registros confirmados se envían a tu cuenta.</p>
+<div class="shortcut-import">
+<label class="import-label" for="shortcutsRaw">Texto producido por el atajo de sincronización</label>
+<textarea id="shortcutsRaw" rows="8" placeholder="HOY&#10;Pasos: 4097&#10;Calorías activas: 209.466&#10;Calorías en reposo: 1821.071&#10;&#10;AYER&#10;..."></textarea>
+<button id="parseShortcutsBtn" class="small-button" type="button">Analizar resultados</button>
+<div id="importPreview" class="hidden" aria-live="polite">
+<p class="fineprint">Comprueba fechas y cifras. Los campos en blanco indican valores no reconocidos y deben corregirse antes de guardar.</p>
+<div class="import-records" id="importFields"></div>
+<button id="saveImportedBtn" class="primary" type="button">Guardar los registros revisados</button>
+</div>
+</div>
+<hr><h2>Privacidad y datos</h2><p>Las fotos se almacenan en un bucket privado; el catálogo y el historial están protegidos con reglas por usuario. Las estimaciones nutricionales son orientativas.</p></section>
         </section>
       </main>
     </div>
