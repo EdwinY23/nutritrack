@@ -207,9 +207,9 @@ function changeMarketMode(){
   $('sourceCategoryWrap').classList.toggle('hidden',mode==='general'||(mode==='restaurante-online'&&!state.onlineMenuItems.length));
   $('sourceFetch').classList.toggle('hidden',mode!=='general');
   chooser.replaceChildren();
-  const matching=state.marketVenues.filter(v=>v.tipo===mode);
+  const matching=state.marketVenues.filter(v=>v.tipo===mode).sort((a,b)=>(Number(b.id==='porthos')-Number(a.id==='porthos')) || a.nombre.localeCompare(b.nombre,'es'));
   for(const venue of matching){
-    const option=document.createElement('option');option.value=venue.id;option.textContent=venue.nombre;chooser.append(option);
+    const option=document.createElement('option');option.value=venue.id;option.textContent=venue.id==='porthos'?'★ '+venue.nombre:venue.nombre;chooser.append(option);
   }
   $('sourceSearch').value='';
   if(mode==='general'){
@@ -280,12 +280,13 @@ function renderMarketResults(){
     const display=hasKcal?decimal(item.kcal,1)+' kcal/'+(item.kind?.startsWith('restaurante')?'porción':'100 g'):
        hasAny?'Valores nutricionales parciales':'Sin calorías publicadas';
     const supporting=item.marca?item.marca+' · ':'';
+    const menuDated=item.id?.startsWith('porthos-')?'Carta publicada 2024 · comprobar vigencia · ':'';
     const pack=item.cantidad_presentacion_g?' · presentación '+decimal(item.cantidad_presentacion_g)+' g':'';
     const source=item.enlace_fuente&&/^https:\/\//.test(item.enlace_fuente)?
       '<a class="food-source-link" href="'+safe(item.enlace_fuente)+'" target="_blank" rel="noopener noreferrer" aria-label="Ver fuente de '+safe(item.nombre)+'">Ver fuente ↗</a>':'';
     return '<article class="market-food-card'+(state.selectedMealItem?.id===item.id?' picked':'')+'">'+
       '<div><span class="market-category">'+safe(item.categoria||'Otros')+'</span>'+
-      '<strong>'+safe(item.nombre)+'</strong><small>'+safe(supporting+(item.establecimiento_nombre||'')+pack)+'</small>'+
+      '<strong>'+safe(item.nombre)+'</strong><small>'+safe(menuDated+supporting+(item.establecimiento_nombre||'')+pack)+'</small>'+
       '<span class="market-nutrition'+(hasKcal?' known':'')+'">'+safe(display)+'</span></div>'+
       '<div class="market-card-actions">'+source+
       '<button type="button" class="market-add" data-market-select="'+safe(item.id)+'">Elegir</button></div></article>';
