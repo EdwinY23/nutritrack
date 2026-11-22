@@ -12,6 +12,15 @@ La selección registra el nombre, comercio y cantidad. Calcula kcal/macros autom
 
 **Validación pendiente:** probar la interfaz de usuario autenticada y la búsqueda externa con una sesión real; comprobar respuesta del navegador y la primera comida antes de asumir que está lista para uso continuo.
 
+## Restaurante frecuente: Porthos Steakhouse & Pub
+
+Porthos fue agregado como primera opción en el selector de restaurantes, con 51 referencias organizadas en 13 categorías (hamburguesas, parrilla, entradas, almuerzos, acompañamientos y otras opciones).
+Los nombres y descripciones provienen de una **carta publicada de 2024**, accesible en:
+https://fiweex.com/sistema/img/pdf/MENU%20NUEVO%20PORTHOS%202024%20ESPA%C3%91OL%20CTA.pdf
+La referencia oficial vigente para comprobar la carta es:
+https://www.porthos.com.co/en/menu-general
+Las referencias históricas pueden haber cambiado de nombre, receta o disponibilidad. Se muestra un aviso de fuente antigua, y no se almacenan macros ni kcal inexistentes. Los platos específicos de diferentes sedes de Barranquilla pueden variar. La búsqueda online también admite el dominio oficial porthos.com.co.
+
 ## Búsqueda de restaurantes en internet (noviembre de 2026)
 
 En Mis comidas > De dónde es? > **Buscar restaurante en internet**, el usuario escribe un nombre y pulsa Buscar. La consulta es bajo demanda, no autocompletado, para cumplir mejor la política de uso de Nominatim/OpenStreetMap.
