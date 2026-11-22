@@ -57,6 +57,7 @@
                 <select id="sourceMode">
                   <option value="supermercado">🛒 Supermercado</option>
                   <option value="restaurante">🍽️ Restaurante</option>
+                  <option value="restaurante-online">🌐 Buscar restaurante en internet</option>
                   <option value="general">🔎 Buscar productos envasados</option>
                   <option value="personal">⭐ Mis alimentos guardados</option>
                 </select>
@@ -74,6 +75,17 @@
             <div class="catalog-actions">
               <button type="button" id="sourceFetch" class="small-button hidden">Buscar en Open Food Facts</button>
               <p id="catalogHint" class="fineprint">Selecciona un comercio y una categoría para ver sus artículos. La existencia puede variar por sede.</p>
+            </div>
+            <div id="onlineRestaurantBox" class="online-discovery hidden">
+              <div class="online-search-row">
+                <label class="online-search-label">Buscar restaurante en Barranquilla
+                  <input id="onlineRestaurantQuery" type="search" maxlength="70" placeholder="Escribe el nombre: KFC, Wok, La Baguette...">
+                </label>
+                <button type="button" class="primary" id="onlineRestaurantButton">Buscar en internet</button>
+              </div>
+              <p id="onlineRestaurantStatus" class="fineprint">Búsqueda bajo demanda: no se consulta internet mientras escribes. Fuentes: OpenStreetMap y sitios oficiales.</p>
+              <div id="onlineRestaurantMatches" class="online-match-list"></div>
+              <div id="onlineMenuInfo" class="online-menu-info hidden"></div>
             </div>
           </section>
           <div class="two-column food-picker-grid">
