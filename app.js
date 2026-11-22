@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.95.0';
 const PROJECT_URL = 'https://qrnmqlanzmktboxweozf.supabase.co';
 const PUBLIC_KEY = 'sb_publishable_gAPlmvuoNQxPslRVJ1L8oA_Mkky3Sh7'; // Publishable key only: never put service role keys in GitHub.
 const supabase = createClient(PROJECT_URL, PUBLIC_KEY, {auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
-const state = { user: null, isSignUp: false, date: todayBogota(), meals: [], foods: [], measurements: [], summary: [], active: 'inicio' };
+const state = { user: null, isSignUp: false, date: todayBogota(), meals: [], foods: [], measurements: [], summary: [], active: 'inicio', marketVenues: [], marketProducts: [], externalProducts: [], visibleMarketProducts: [], selectedMealItem: null };
 const $ = (id) => document.getElementById(id);
 const empty = (label) => '<div class="empty-state">' + safe(label) + '</div>';
 function safe(s){ return String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -63,7 +63,7 @@ supabase.auth.onAuthStateChange((_event,session)=>{
   else{state.meals=[];state.foods=[];state.summary=[];state.measurements=[];clearDisplay();}
 });
 async function loadAll(){
-  await Promise.all([loadFoods(),loadMeasurements(),refreshDateData()]);
+  await Promise.all([loadFoods(),loadMeasurements(),refreshDateData(),loadMarketCatalog()]);
   renderFoods();renderBody();
 }
 async function loadFoods(){
@@ -167,7 +167,159 @@ $('catalogSelect').addEventListener('change',()=>{
  calculateCatalogValues();
 });
 $('mealGrams').addEventListener('input',calculateCatalogValues);
+// Selección de productos y menús por comercio, sin inventar valores nutricionales.
+const marketNorm = s=>String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es-CO');
+function selectedMode(){return $('sourceMode').value;}
+function marketVenue(){return state.marketVenues.find(v=>v.id===$('sourceVenue').value)||null;}
+function resetMealSelection(){
+  state.selectedMealItem=null;
+  const form=$('mealForm');
+  if(form){
+    for(const key of ['alimento_nombre','descripcion','calorias_kcal','proteina_g','carbohidratos_g','grasas_g']){
+      const field=form.elements.namedItem(key);if(field)field.value='';
+    }
+    $('catalogSelect').value='';
+  }
+  $('selectedPreview').innerHTML='<strong>Aún no has elegido un alimento</strong><span>Selecciona un producto o plato de la lista.</span>';
+  $('nutritionPreview').textContent='Los valores nutricionales aparecerán cuando el producto los incluya.';
+  $('mealGrams').value='100';$('selectedPortionLabel').firstChild.textContent='Cantidad consumida (gramos) ';
+}
+async function loadMarketCatalog(){
+  if(!state.user)return;
+  const [a,b]=await Promise.all([
+    supabase.from('establecimientos_catalogo').select('*').order('nombre'),
+    supabase.from('articulos_catalogo').select('*').eq('activo',true).order('nombre')
+  ]);
+  if(a.error||b.error){
+    $('catalogHint').textContent='No pudimos obtener los catálogos. Verifica la conexión e intenta actualizar la página.';
+    notify('Error de catálogo: '+(a.error?.message||b.error?.message),true);return;
+  }
+  state.marketVenues=a.data||[];state.marketProducts=b.data||[];
+  changeMarketMode();
+}
+function changeMarketMode(){
+  resetMealSelection();
+  const mode=selectedMode();
+  const chooser=$('sourceVenue'), wrap=$('sourceVenueWrap');
+  const needsVenue=mode==='supermercado'||mode==='restaurante';
+  wrap.classList.toggle('hidden',!needsVenue);
+  $('sourceCategoryWrap').classList.toggle('hidden',mode==='general');
+  $('sourceFetch').classList.toggle('hidden',mode!=='general');
+  chooser.replaceChildren();
+  const matching=state.marketVenues.filter(v=>v.tipo===mode);
+  for(const venue of matching){
+    const option=document.createElement('option');option.value=venue.id;option.textContent=venue.nombre;chooser.append(option);
+  }
+  $('sourceSearch').value='';
+  if(mode==='general'){
+    $('catalogHint').textContent='Busca en Open Food Facts, una base abierta de productos envasados. No acredita que se vendan en D1 u Olímpica; comprueba la etiqueta antes de confiar en los macros.';
+  }else if(mode==='personal'){
+    $('catalogHint').textContent='Tus alimentos guardados de forma privada. Puedes añadir más desde la pestaña Catálogo.';
+  }else{
+    $('catalogHint').textContent='Referencias enlazadas a catálogos oficiales. Los menús cambian y la disponibilidad varía por sucursal; si no se publican nutrientes, no mostramos valores inventados.';
+  }
+  rebuildMarketCategories();renderMarketResults();
+}
+function rebuildMarketCategories(){
+  const categories=$('sourceCategory');
+  const old=categories.value;
+  const mode=selectedMode(),venue=$('sourceVenue').value;
+  const all=mode==='personal'?state.foods.map(f=>f.categoria||'Otros'):
+    state.marketProducts.filter(p=>p.establecimiento_id===venue).map(p=>p.categoria);
+  const values=[...new Set(all.filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+  categories.replaceChildren();
+  const defaultOption=document.createElement('option');defaultOption.value='';defaultOption.textContent='Todas las categorías';categories.append(defaultOption);
+  for(const c of values){const o=document.createElement('option');o.value=c;o.textContent=c;categories.append(o)}
+  categories.value=values.includes(old)?old:'';
+}
+function normalizedMarketItems(){
+  const mode=selectedMode();
+  if(mode==='general')return state.externalProducts.map(p=>({
+    ...p,kind:'externo',establecimiento_nombre:'Open Food Facts',base_nutricional:'100g'
+  }));
+  if(mode==='personal')return state.foods.map(f=>({
+    id:'personal-'+f.id,originalId:f.id,kind:'personal',nombre:f.nombre,
+    marca:f.marca,establecimiento_nombre:'Mis alimentos',categoria:f.categoria||'Otros',
+    cantidad_presentacion_g:f.porcion_habitual_g,
+    base_nutricional:'100g',kcal:f.kcal_100g,proteina_g:f.proteina_100g,
+    carbohidratos_g:f.carbohidratos_100g,grasas_g:f.grasas_100g,
+    enlace_fuente:f.url_fuente,origen:f.origen_dato
+  }));
+  const venue=marketVenue();
+  if(!venue)return[];
+  return state.marketProducts.filter(p=>p.establecimiento_id===venue.id)
+    .map(p=>({...p,kind:venue.tipo,establecimiento_nombre:venue.nombre}));
+}
+function renderMarketResults(){
+  const query=marketNorm($('sourceSearch').value.trim());
+  const category=$('sourceCategory').value;
+  const mode=selectedMode();
+  const items=normalizedMarketItems().filter(item=>{
+    if(category&&mode!=='general'&&item.categoria!==category)return false;
+    const searchable=[item.nombre,item.marca,item.categoria,item.detalle,item.establecimiento_nombre].join(' ');
+    return marketNorm(searchable).includes(query);
+  });
+  state.visibleMarketProducts=items;
+  $('catalogCount').textContent=items.length+' opciones';
+  $('sourceResultSubtitle').textContent=mode==='general'?'Resultados de Open Food Facts':
+    mode==='personal'?'Tus alimentos guardados':(marketVenue()?.nombre||'Selecciona un establecimiento');
+  const target=$('sourceResults');
+  if(!items.length){
+    target.innerHTML=empty(mode==='general'?'Introduce un nombre y pulsa «Buscar en Open Food Facts».':
+      'No se encontraron productos con estos filtros. Prueba otra categoría o término.');return;
+  }
+  target.innerHTML=items.slice(0,100).map(item=>{
+    const hasKcal=item.kcal!=null;
+    const hasAny=[item.kcal,item.proteina_g,item.carbohidratos_g,item.grasas_g].some(n=>n!=null);
+    const display=hasKcal?decimal(item.kcal,1)+' kcal/'+(item.kind==='restaurante'?'porción':'100 g'):
+       hasAny?'Valores nutricionales parciales':'Sin calorías publicadas';
+    const supporting=item.marca?item.marca+' · ':'';
+    const pack=item.cantidad_presentacion_g?' · presentación '+decimal(item.cantidad_presentacion_g)+' g':'';
+    const source=item.enlace_fuente&&/^https:\/\//.test(item.enlace_fuente)?
+      '<a class="food-source-link" href="'+safe(item.enlace_fuente)+'" target="_blank" rel="noopener noreferrer" aria-label="Ver fuente de '+safe(item.nombre)+'">Ver fuente ↗</a>':'';
+    return '<article class="market-food-card'+(state.selectedMealItem?.id===item.id?' picked':'')+'">'+
+      '<div><span class="market-category">'+safe(item.categoria||'Otros')+'</span>'+
+      '<strong>'+safe(item.nombre)+'</strong><small>'+safe(supporting+(item.establecimiento_nombre||'')+pack)+'</small>'+
+      '<span class="market-nutrition'+(hasKcal?' known':'')+'">'+safe(display)+'</span></div>'+
+      '<div class="market-card-actions">'+source+
+      '<button type="button" class="market-add" data-market-select="'+safe(item.id)+'">Elegir</button></div></article>';
+  }).join('');
+}
+function chooseMarketProduct(id){
+  const item=state.visibleMarketProducts.find(p=>p.id===id);
+  if(!item)return;
+  state.selectedMealItem={...item};
+  const isMenu=item.kind==='restaurante';
+  const form=$('mealForm');
+  form.elements.namedItem('alimento_nombre').value=item.nombre;
+  form.elements.namedItem('descripcion').value=item.nombre+' · '+item.establecimiento_nombre;
+  form.elements.namedItem('metodo').value=isMenu?'restaurante':item.kind==='externo'?'tabla':'manual';
+  $('catalogSelect').value=item.kind==='personal'?item.originalId:'';
+  $('manualMealDetails').open=false;
+  $('selectedPortionLabel').firstChild.textContent=isMenu?'Cantidad de porciones consumidas ':'Cantidad consumida (gramos) ';
+  $('mealGrams').value=isMenu?'1':(item.kind==='personal'&&item.cantidad_presentacion_g?item.cantidad_presentacion_g:'100');
+  $('selectedPreview').innerHTML='<span class="eyebrow">SELECCIONADO</span><strong>'+safe(item.nombre)+'</strong>'+
+    '<span>'+safe(item.establecimiento_nombre)+(item.marca?' · '+safe(item.marca):'')+'</span>';
+  calculateCatalogValues();
+  renderMarketResults();
+}
 function calculateCatalogValues(){
+ const selected=state.selectedMealItem;
+ if(selected){
+   const amount=Number($('mealGrams').value);
+   const isMenu=selected.kind==='restaurante';
+   const fraction=isMenu?amount:amount/100;
+   const pairs=[['mealKcal','kcal'],['mealProtein','proteina_g'],['mealCarbs','carbohidratos_g'],['mealFat','grasas_g']];
+   for(const [field,key] of pairs){
+     $(field).value=selected[key]!=null&&Number.isFinite(fraction)&&fraction>0?
+       (Number(selected[key])*fraction).toFixed(2):'';
+   }
+   const haveKcal=$('mealKcal').value!=='';
+   $('nutritionPreview').textContent=haveKcal?
+     'Porción elegida: '+decimal($('mealKcal').value,1)+' kcal · '+decimal($('mealProtein').value||0,1)+' g proteína (otros datos pueden faltar).'
+     :'Este artículo no publica calorías verificables en el catálogo consultado. Se registrará sin calorías, sin inventar una estimación.';
+   return;
+ }
  const f=state.foods.find(x=>x.id===$('catalogSelect').value);
  const grams=Number($('mealGrams').value);
  if(!f||!(grams>0))return;
@@ -175,6 +327,45 @@ function calculateCatalogValues(){
    $(field).value=f[db]==null?'':(Number(f[db])*grams/100).toFixed(1);
  }
 }
+$('sourceMode').addEventListener('change',changeMarketMode);
+$('sourceVenue').addEventListener('change',()=>{resetMealSelection();rebuildMarketCategories();renderMarketResults()});
+$('sourceCategory').addEventListener('change',renderMarketResults);
+$('sourceSearch').addEventListener('input',renderMarketResults);
+$('sourceResults').addEventListener('click',e=>{
+ const button=e.target.closest('[data-market-select]');
+ if(button)chooseMarketProduct(button.dataset.marketSelect);
+});
+$('manualMealDetails').addEventListener('toggle',()=>{
+ if($('manualMealDetails').open&&state.selectedMealItem){
+  resetMealSelection();renderMarketResults();
+ }
+});
+$('sourceFetch').addEventListener('click',async()=>{
+ if(selectedMode()!=='general'||!state.user)return;
+ const q=$('sourceSearch').value.trim();
+ if(q.length<3){notify('Escribe al menos tres letras para buscar productos envasados.',true);return;}
+ const button=$('sourceFetch');
+ button.disabled=true;button.textContent='Buscando productos...';
+ const {data:{session}}=await supabase.auth.getSession();
+ if(!session){button.disabled=false;button.textContent='Buscar en Open Food Facts';notify('Inicia sesión antes de buscar.',true);return;}
+ try{
+   const response=await fetch(PROJECT_URL+'/functions/v1/nutritrack-product-search?q='+encodeURIComponent(q),{
+     headers:{authorization:'Bearer '+session.access_token,apikey:PUBLIC_KEY}
+   });
+   const data=await response.json();
+   if(!response.ok)throw Error(data?.error||'La búsqueda no está disponible');
+   state.externalProducts=(data.productos||[]).map(p=>({
+     ...p,kind:'externo',establecimiento_nombre:'Open Food Facts',categoria:'Producto envasado'
+   }));
+   $('catalogHint').textContent=data.nota||'Open Food Facts: información comunitaria; revisa la etiqueta.';
+   if(!state.externalProducts.length)notify('No se encontraron productos; intenta otra marca o nombre.');
+   // Search-term match is already done by the external catalog.
+   $('sourceSearch').value='';
+   renderMarketResults();
+ }catch(error){notify('No pudimos buscar productos: '+error.message,true);}
+ finally{button.disabled=false;button.textContent='Buscar en Open Food Facts';}
+});
+
 function renderBody(){
  $('bodyHistory').innerHTML=state.measurements.length?state.measurements.map(m=>{
   const metrics=[m.peso_kg!=null?decimal(m.peso_kg,2)+' kg':null,m.cintura_cm!=null?'Cintura '+decimal(m.cintura_cm,1)+' cm'+(m.cintura_provisional?' (provisional)':''):null,m.cadera_cm!=null?'Cadera '+decimal(m.cadera_cm,1)+' cm':null,m.grasa_corporal_pct!=null?'Grasa '+decimal(m.grasa_corporal_pct,1)+' % estimado':null,m.masa_muscular_esqueletica_kg!=null?'Músculo '+decimal(m.masa_muscular_esqueletica_kg,1)+' kg estimado':null].filter(Boolean);
