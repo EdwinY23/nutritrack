@@ -2,6 +2,16 @@
 
 Dashboard personal para recomposición corporal: alimentación, medidas corporales y actividad de Apple Health.
 
+## Registro de comidas con selección guiada
+
+La página **Mis comidas** ahora tiene un selector por tipo de establecimiento, comercio, categoría y nombre/marca. Los establecimientos iniciales son D1, Olímpica, Éxito y Jumbo (supermercados), y Frisby, McDonald's, El Corral y Juan Valdez (restaurantes). El catálogo inicial contiene **44 referencias con enlaces de origen**, no inventario completo de las cadenas ni garantía de disponibilidad por sucursal. Los menús y productos deben revisarse periódicamente.
+
+La vista **Productos envasados** utiliza una función de Supabase (`nutritrack-product-search`) para solicitar resultados adicionales a [Open Food Facts](https://world.openfoodfacts.org/). Es una base comunitaria, no una confirmación de que los productos se vendan en una cadena específica. La búsqueda se realiza solamente a petición del usuario; hay límites de uso en la fuente externa.
+
+La selección registra el nombre, comercio y cantidad. Calcula kcal/macros automáticamente **únicamente** si la fuente contiene valores nutricionales. Si faltan calorías, se guardan como dato pendiente (nunca como 0 kcal). El formulario manual sigue disponible como alternativa opcional. Los datos de cada comida se guardan bajo la RLS privada de Supabase, con referencia de origen.
+
+**Validación pendiente:** probar la interfaz de usuario autenticada y la búsqueda externa con una sesión real; comprobar respuesta del navegador y la primera comida antes de asumir que está lista para uso continuo.
+
 ## Versión inicial
 
 - Código en GitHub Pages, sin datos personales en el repositorio.
