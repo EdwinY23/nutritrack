@@ -57,3 +57,23 @@
 .manual-fields{display:flex;flex-direction:column;gap:13px;margin-top:18px}
 @media(max-width:1200px){.market-filter-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.food-picker-grid{grid-template-columns:1fr}}
 @media(max-width:600px){.market-filter-grid{grid-template-columns:1fr}.filter-head{align-items:flex-start}.catalog-actions{align-items:flex-start;flex-direction:column-reverse}.catalog-actions button{width:100%}.market-food-card{gap:8px;padding:12px}.market-add{padding:8px 12px}.market-card-actions{gap:8px}.meal-picker-form{position:static}.source-results{max-height:465px}}
+
+
+/* On-demand restaurant discovery and official menu links */
+.online-discovery{border:1px solid #36526a;border-radius:15px;background:#142736;padding:17px;margin-top:15px}
+.online-search-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:12px;margin-bottom:10px}
+.online-search-label{display:flex;flex-direction:column;gap:6px;font-size:.81rem;font-weight:700;color:#dbe8f2}
+.online-search-row .primary{min-height:45px}
+.online-match-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px;margin-top:15px}
+.online-venue-card{display:flex;align-items:center;justify-content:space-between;gap:11px;padding:13px;background:#203245;border:1px solid #395269;border-radius:13px}
+.online-venue-card strong{display:block;font-size:.88rem}
+.online-venue-card small{display:block;color:#a4b9cc;font-size:.75rem;margin-top:3px}
+.online-venue-links{font-size:.73rem;margin-top:7px;display:flex;flex-wrap:wrap;gap:8px 10px}
+.online-venue-links a{color:#7bdfbd}
+.online-venue-links a:hover{text-decoration:underline}
+.online-venue-card .market-add{white-space:nowrap;align-self:center}
+.online-menu-info{background:#203e36;border:1px solid #386a5b;padding:15px 17px;border-radius:12px;margin-top:16px}
+.online-menu-info strong{display:block;font-size:.95rem}
+.online-menu-info p{color:#c7e1d8;margin:7px 0;font-size:.84rem}
+.online-menu-info small{display:block;color:#98c0b3;margin-top:8px}
+@media(max-width:680px){.online-search-row{grid-template-columns:1fr}.online-match-list{grid-template-columns:1fr}.online-venue-card{align-items:flex-start}.online-venue-card button{font-size:.71rem;padding:8px}}
